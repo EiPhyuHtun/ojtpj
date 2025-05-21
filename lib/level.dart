@@ -15,7 +15,6 @@ class LevelPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFFFBEA),
       body: SafeArea(
         child: Column(
           children: [
@@ -23,7 +22,7 @@ class LevelPage extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 Container(
-                  height: 120,
+                  height: 210,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -34,31 +33,41 @@ class LevelPage extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  top: 60,
+                  top: 170,
                   left: 0,
                   right: 0,
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.person_outline,
-                            size: 40, color: Colors.teal),
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                        'SakuraAikoharui',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFFFBEA),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(40)),
+                    ),
+                    child: Column(
+                      children: [
+                        Transform.translate(
+                          offset: Offset(0, -30),
+                          child: CircleAvatar(
+                            radius: 45,
+                            backgroundColor: Colors.white,
+                            child: Icon(Icons.person_outline,
+                                size: 40, color: Colors.teal),
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          '',
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 60),
+            SizedBox(height: 80),
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: levels.map((level) {
@@ -90,7 +99,7 @@ class LevelPage extends StatelessWidget {
                   itemCount: exams.length,
                   itemBuilder: (context, index) {
                     return ListTile(
-                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                      contentPadding: EdgeInsets.symmetric(vertical: 15),
                       leading: CircleAvatar(
                         backgroundColor: Colors.purple[100],
                         child: Text(
