@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'exam_detail.dart';
 
-class LevelPage extends StatelessWidget {
+class LevelPage extends StatefulWidget {
+  @override
+  _LevelPageState createState() => _LevelPageState();
+}
+
+class _LevelPageState extends State<LevelPage> {
   final List<Map<String, String>> exams = [
     {'year': '2024', 'month': '7月'},
     {'year': '2024', 'month': '12月'},
@@ -11,6 +17,8 @@ class LevelPage extends StatelessWidget {
   ];
 
   final List<String> levels = ['N5', 'N4', 'N3', 'N2', 'N1'];
+
+  String selectedLevel = 'N5';
 
   @override
   Widget build(BuildContext context) {
@@ -48,14 +56,14 @@ class LevelPage extends StatelessWidget {
                           offset: Offset(0, -30),
                           child: CircleAvatar(
                             radius: 45,
-                            backgroundColor: Colors.white,
+                            backgroundColor:
+                                const Color.fromARGB(255, 245, 193, 193),
                             child: Icon(Icons.person_outline,
-                                size: 40, color: Colors.teal),
+                                size: 40, color: Colors.white),
                           ),
                         ),
-                        SizedBox(height: 10),
                         Text(
-                          '',
+                          'User1',
                           style: TextStyle(
                               fontSize: 20, fontWeight: FontWeight.bold),
                         ),
@@ -71,20 +79,29 @@ class LevelPage extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: levels.map((level) {
-                  bool isSelected = level == 'N5';
-                  return Container(
-                    padding: EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                    decoration: BoxDecoration(
-                      color:
-                          isSelected ? Colors.yellow[700] : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.black26),
-                    ),
-                    child: Text(
-                      level,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isSelected ? Colors.white : Colors.black87,
+                  bool isSelected = level == selectedLevel;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedLevel = level;
+                      });
+                    },
+                    child: Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.yellow[700]
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.black26),
+                      ),
+                      child: Text(
+                        level,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? Colors.white : Colors.black87,
+                        ),
                       ),
                     ),
                   );
@@ -114,6 +131,18 @@ class LevelPage extends StatelessWidget {
                         '${exams[index]['year']}年${exams[index]['month']}',
                         style: TextStyle(fontSize: 16),
                       ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ExamDetailScreen(
+                              year: exams[index]['year']!,
+                              month: exams[index]['month']!,
+                              level: selectedLevel,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
