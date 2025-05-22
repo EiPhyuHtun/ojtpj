@@ -62,7 +62,7 @@ flutter:
   assets:
     - assets/images/book.png
     - assets/images/curve_background.png
-
+    - assets/images/girl.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 
