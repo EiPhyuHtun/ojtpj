@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class ExamDetailScreen extends StatelessWidget {
+class ExamDetailScreen extends StatefulWidget {
   final String year;
   final String month;
   final String level;
@@ -13,6 +13,90 @@ class ExamDetailScreen extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  _ExamDetailScreenState createState() => _ExamDetailScreenState();
+}
+
+class _ExamDetailScreenState extends State<ExamDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  int _currentIndex = 0;
+
+  final List<Widget> _pages = [
+    const ExamDetailTab(),
+    const SignupScreen(),
+    const HistoryScreen(),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: _pages.length, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        setState(() {
+          _currentIndex = _tabController.index;
+        });
+      }
+    });
+  }
+
+  void _onTabTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+      _tabController.animateTo(index);
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        body: TabBarView(
+          controller: _tabController,
+          physics: const NeverScrollableScrollPhysics(),
+          children: _pages,
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: _onTabTapped,
+          items: [
+            BottomNavigationBarItem(
+              icon: SizedBox(
+                height: 30,
+                width: 30,
+                child: Image.asset('assets/images/home.jpg'),
+              ),
+              label: 'ホーム',
+            ),
+            BottomNavigationBarItem(
+              icon: SizedBox(
+                height: 30,
+                width: 30,
+                child: Image.asset('assets/images/profile.jpg'),
+              ),
+              label: 'プロフィール',
+            ),
+            BottomNavigationBarItem(
+              icon: SizedBox(
+                height: 30,
+                width: 30,
+                child: Image.asset('assets/images/history.png'),
+              ),
+              label: '歴史',
+            ),
+          ],
+        ));
+  }
+}
+
+class ExamDetailTab extends StatelessWidget {
+  const ExamDetailTab({super.key});
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
@@ -23,8 +107,8 @@ class ExamDetailScreen extends StatelessWidget {
               width: double.infinity,
               fit: BoxFit.cover,
             ),
-            SizedBox(height: 30),
-            Padding(
+            const SizedBox(height: 30),
+            const Padding(
               padding: EdgeInsets.only(left: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -36,20 +120,15 @@ class ExamDetailScreen extends StatelessWidget {
                         size: 40, color: Colors.white),
                   ),
                   SizedBox(width: 20),
-                  Container(
-                    height: 90,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'User1',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
+                  Text(
+                    'User1',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
             ),
-            SizedBox(height: 40),
-            Row(
+            const SizedBox(height: 40),
+            const Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 Padding(
@@ -61,45 +140,79 @@ class ExamDetailScreen extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: 30),
-            Row(
+            const SizedBox(height: 30),
+            const Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _examTypeBox('文字', '30分', Colors.orange, Colors.black),
-                _examTypeBox('読解', '60分', Colors.cyan, Colors.black),
-                _examTypeBox('聴解', '40分', Colors.lightBlue, Colors.black),
+                _ExamTypeBox('文字', '30分', Colors.orange, Colors.black),
+                _ExamTypeBox('読解', '60分', Colors.cyan, Colors.black),
+                _ExamTypeBox('聴解', '40分', Colors.lightBlue, Colors.black),
               ],
             ),
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'ホーム'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'プロフィール'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: '歴史'),
-        ],
+    );
+  }
+}
+
+class _ExamTypeBox extends StatelessWidget {
+  final String title;
+  final String duration;
+  final Color bgColor;
+  final Color textColor;
+  const _ExamTypeBox(this.title, this.duration, this.bgColor, this.textColor);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: bgColor,
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title,
+                style: TextStyle(
+                    color: textColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text(duration,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 14,
+                )),
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _examTypeBox(
-      String title, String duration, Color bgColor, Color textColor) {
-    return Container(
-      width: 100,
-      padding: EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: bgColor,
-      ),
-      child: Column(
-        children: [
-          Text(title,
-              style: TextStyle(
-                  color: textColor, fontSize: 15, fontWeight: FontWeight.bold)),
-          SizedBox(height: 8),
-          Text(duration, style: TextStyle(color: textColor)),
-        ],
-      ),
+class SignupScreen extends StatelessWidget {
+  const SignupScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text('Signup Screen (Blank)', style: TextStyle(fontSize: 20)),
+    );
+  }
+}
+
+class HistoryScreen extends StatelessWidget {
+  const HistoryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text('History Screen (Blank)', style: TextStyle(fontSize: 20)),
     );
   }
 }

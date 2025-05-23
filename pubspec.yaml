@@ -63,6 +63,9 @@ flutter:
     - assets/images/book.png
     - assets/images/curve_background.png
     - assets/images/girl.png
+    - assets/images/history.png
+    - assets/images/home.jpg
+    - assets/images/profile.jpg
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 
