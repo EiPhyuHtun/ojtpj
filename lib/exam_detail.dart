@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'signup.dart';
+import 'history.dart';
 
 class ExamDetailScreen extends StatefulWidget {
   final String year;
@@ -191,28 +193,6 @@ class _ExamTypeBox extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class SignupScreen extends StatelessWidget {
-  const SignupScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Signup Screen (Blank)', style: TextStyle(fontSize: 20)),
-    );
-  }
-}
-
-class HistoryScreen extends StatelessWidget {
-  const HistoryScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text('History Screen (Blank)', style: TextStyle(fontSize: 20)),
     );
   }
 }
