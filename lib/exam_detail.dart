@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jlpt_quiz/profileScreen.dart';
 import 'signup.dart';
 import 'history.dart';
 
@@ -25,7 +26,7 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
 
   final List<Widget> _pages = [
     const ExamDetailTab(),
-    const SignupScreen(),
+    ProfileScreen(),
     const HistoryScreen(),
   ];
 
