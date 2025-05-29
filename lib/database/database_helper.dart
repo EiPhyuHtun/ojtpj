@@ -15,9 +15,9 @@ class DatabaseHelper {
   DatabaseHelper._privateConstructor(); // Private constructor for singleton
 
   Future<Database> get database async {
-
     print("database");
     if (_database != null) return _database!;
+    print("if condition");
     _database = await _initDatabase();
     return _database!;
   }
@@ -27,7 +27,9 @@ class DatabaseHelper {
 
     // Get the default databases path for your application.
     String databasesPath = await getDatabasesPath();
-    String path = join(databasesPath, 'feqiz_db.db'); // Your database file name
+    String path = join(databasesPath, 'jlptquiz.db');
+    print("#####");
+    print(databasesPath); // Your database file name
 
     // Check if the database file already exists.
     bool databaseExists = await File(path).exists(); // Use File(path).exists()
@@ -40,8 +42,10 @@ class DatabaseHelper {
         await Directory(dirname(path)).create(recursive: true);
 
         // Load the database from assets as a byte data.
-        ByteData data = await rootBundle.load(join("assets", "database", "jlptquiz.db"));
-        List<int> bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+        ByteData data =
+            await rootBundle.load(join("assets", "database", "jlptquiz.db"));
+        List<int> bytes =
+            data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
 
         // Write the bytes to the new database file.
         await File(path).writeAsBytes(bytes, flush: true);
@@ -98,14 +102,25 @@ class DatabaseHelper {
       conflictAlgorithm: ConflictAlgorithm.replace, // Handle conflicts
     );
   }
- 
-  // Get all images
-    Future<List<Map<String, dynamic>>> getUsers() async {
-      Database db = await database;
-      return await db.query('users');
-    }
 
-  
+  Future<int> updateUser(User user) async {
+    print("...Update User: ${user.id}");
+    final db = await database;
+    return await db.update(
+      'users',
+      user.toMap(),
+      where: 'id = ?',
+      whereArgs: [user.id],
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // Get all images
+  Future<List<Map<String, dynamic>>> getUsers() async {
+    Database db = await database;
+    return await db.query('users');
+  }
+
   // Close the database (optional, as it's often kept open for the app's lifetime)
   Future<void> close() async {
     final db = await database;

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:jlpt_quiz/database/database_helper.dart';
+import 'package:jlpt_quiz/model/user.dart';
 import 'package:jlpt_quiz/profileScreen.dart';
 import 'signup.dart';
 import 'history.dart';
@@ -97,8 +99,32 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
   }
 }
 
-class ExamDetailTab extends StatelessWidget {
+class ExamDetailTab extends StatefulWidget {
   const ExamDetailTab({super.key});
+  @override
+  State<ExamDetailTab> createState() => _ExamDetailTabState();
+}
+
+class _ExamDetailTabState extends State<ExamDetailTab> {
+  User? _currentUser; // To store the fetched user data
+  final dbHelper = DatabaseHelper.instance; // Get an instance of your DB helper
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser(); // Load user data when the widget initializes
+  }
+
+  Future<void> _loadUser() async {
+    final List<Map<String, dynamic>> maps = await dbHelper.getUsers();
+    if (maps.isNotEmpty) {
+      setState(() {
+        _currentUser =
+            User.fromMap(maps.first); // Assuming you want the first user
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -111,21 +137,31 @@ class ExamDetailTab extends StatelessWidget {
               fit: BoxFit.cover,
             ),
             const SizedBox(height: 30),
-            const Padding(
-              padding: EdgeInsets.only(left: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 45,
-                    backgroundColor: const Color.fromARGB(255, 245, 193, 193),
-                    child: Icon(Icons.person_outline,
-                        size: 40, color: Colors.white),
-                  ),
-                  SizedBox(width: 20),
+                  _currentUser != null
+                      ? CircleAvatar(
+                          radius: 45,
+                          backgroundColor:
+                              const Color.fromARGB(255, 245, 193, 193),
+                          backgroundImage:
+                              MemoryImage(_currentUser!.userImage!),
+                        )
+                      : const CircleAvatar(
+                          radius: 45,
+                          backgroundColor:
+                              const Color.fromARGB(255, 245, 193, 193),
+                          child: Icon(Icons.person_outline,
+                              size: 40, color: Colors.white),
+                        ),
+                  const SizedBox(width: 20),
                   Text(
-                    'User1',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    _currentUser != null ? _currentUser!.userName : 'User1',
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),

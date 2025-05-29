@@ -21,14 +21,12 @@ class User {
     };
   }
 
-
-
   // Factory constructor to create a User from a Map (when reading from DB)
   factory User.fromMap(Map<String, dynamic> map) {
     return User(
-      id: map['id'] ,
-      userName: map['userName'] ,
-      userImage: map['userImage'] ,
+      id: map['id'],
+      userName: map['userName'],
+      userImage: map['userImage'] as Uint8List?,
     );
   }
 }

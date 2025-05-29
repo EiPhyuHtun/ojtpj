@@ -1,32 +1,93 @@
 import 'dart:io' as io;
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:jlpt_quiz/database/database_helper.dart';
 import 'package:jlpt_quiz/level.dart';
 import 'package:jlpt_quiz/model/user.dart';
+import 'package:jlpt_quiz/profileEditScreen.dart';
 
 class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
   @override
   _ProfileScreenState createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-   // Initialize your database helper
+  // Initialize your database helper
+  final dbHelper = DatabaseHelper.instance;
+  User? _currentUser;
+  @override
+  void initState() {
+    super.initState();
+    _loadUser(); // Attempt to load user data when the screen initializes
+  }
+
+  // Method to load the user from the database
+  Future<void> _loadUser() async {
+    final List<Map<String, dynamic>> maps = await dbHelper.getUsers();
+    if (maps.isNotEmpty) {
+      setState(() {
+        _currentUser =
+            User.fromMap(maps.first); // Assuming only one user for profile
+      });
+    } else {
+      setState(() {
+        _currentUser = null; // No user found
+      });
+    }
+  }
+
+  // Callback for when a user is successfully created (from signup)
+  void _onUserCreated() {
+    _loadUser(); // Reload user to switch to edit mode
+    // Navigate to LevelPage after successful creation
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => LevelPage()),
+    );
+  }
+
+  // Callback for when a user is successfully updated (from edit)
+  void _onProfileUpdated() {
+    _loadUser(); // Reload user to refresh UI (optional, but good for consistency)
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Profile Updated Successfully')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // If _currentUser is null, show the signup form
+    // If _currentUser has data, show the profile edit form
+    return _currentUser == null
+        ? _SignupContent(onUserCreated: _onUserCreated)
+        : ProfileEditScreen(
+            // Now using the separate ProfileEditScreen
+            currentUser: _currentUser!, // Pass the current user
+            onProfileUpdated: _onProfileUpdated,
+          );
+  }
+}
+
+// --- START: Existing Widget for Signup Content (remains in this file) ---
+class _SignupContent extends StatefulWidget {
+  final VoidCallback onUserCreated;
+
+  const _SignupContent({Key? key, required this.onUserCreated})
+      : super(key: key);
+
+  @override
+  _SignupContentState createState() => _SignupContentState();
+}
+
+class _SignupContentState extends State<_SignupContent> {
   final dbHelper = DatabaseHelper.instance;
   XFile? _imageFile;
   final ImagePicker _picker = ImagePicker();
   final nameController = TextEditingController();
-  Uint8List? _selectedImageBytes; 
-  List<User> _users = [];
+  Uint8List? _selectedImageBytes;
 
-
-    @override
-  void initState() {
-    super.initState();
-    _loadImages();
-  }
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
@@ -38,34 +99,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     }
   }
-  Future<void> insertUser() async {
-    WidgetsFlutterBinding.ensureInitialized();
 
+  Future<void> _insertUser() async {
     if (_selectedImageBytes != null && nameController.text.isNotEmpty) {
-      await dbHelper.insertUser(User(userName: nameController.text, userImage: _selectedImageBytes!));
-
-      setState(() {
-        nameController.clear();
-        _selectedImageBytes = null; // Clear selected image
-      });
+      await dbHelper.insertUser(
+          User(userName: nameController.text, userImage: _selectedImageBytes!));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('User Created Successfully')),
-      ); 
-      Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) =>  LevelPage()),
-  ); 
+      );
+      widget.onUserCreated();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an image and enter a title.')),
+        const SnackBar(
+            content: Text('Please select an image and enter a title.')),
       );
     }
-  }
-
-  Future<void> _loadImages() async {
-    final List<Map<String, dynamic>> maps = await dbHelper.getUsers();
-    setState(() {
-      _users = maps.map((map) => User.fromMap(map)).toList();
-    });
   }
 
   @override
@@ -74,14 +122,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  //method insert data in MySql 
+  //method insert data in MySql
   //connect the database
 
-  @override 
+  @override
   Widget build(BuildContext context) {
     Widget imagePreview;
     if (_imageFile == null) {
-      imagePreview = Row(
+      imagePreview = const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.image, size: 28),
@@ -100,11 +148,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            SizedBox(height: 80),
-            Text("QUIZ 4 ✅", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-            SizedBox(height: 24),
-            Text('サインアップ', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
+            const Text('サインアップ',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -117,33 +164,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Center(child: imagePreview),
               ),
             ),
-            SizedBox(height: 24),
-            Align(
+            const SizedBox(height: 24),
+            const Align(
               alignment: Alignment.centerLeft,
-              child: Text("名前", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              child: Text("名前",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             TextField(
               controller: nameController,
               decoration: InputDecoration(
                 filled: true,
                 fillColor: Colors.white70,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             ElevatedButton(
-               onPressed: () {
+              onPressed: () {
                 print('Insert Data');
-                insertUser();
-               },
-             
+                _insertUser();
+              },
               style: ElevatedButton.styleFrom(
-                minimumSize: Size(double.infinity, 60),
+                minimumSize: const Size(double.infinity, 60),
                 backgroundColor: Colors.blue,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              child: Text("サインアップ", style: TextStyle(fontSize: 20)),
+              child: const Text("サインアップ", style: TextStyle(fontSize: 20)),
             ),
           ],
         ),
@@ -151,4 +200,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-
