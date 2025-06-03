@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:jlpt_quiz/database/database_helper.dart';
 import 'package:jlpt_quiz/model/user.dart';
 import 'package:jlpt_quiz/profileScreen.dart';
-import 'signup.dart';
 import 'history.dart';
+import 'questionScreen.dart';
 
 class ExamDetailScreen extends StatefulWidget {
   final String year;
@@ -26,16 +26,10 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
   late TabController _tabController;
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    const ExamDetailTab(),
-    ProfileScreen(),
-    const HistoryScreen(),
-  ];
-
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _pages.length, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
         setState(() {
@@ -60,6 +54,12 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> _pages = [
+      ExamDetailTab(
+          year: widget.year, month: widget.month, level: widget.level),
+      ProfileScreen(),
+      const HistoryScreen(),
+    ];
     return Scaffold(
         body: TabBarView(
           controller: _tabController,
@@ -100,7 +100,15 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
 }
 
 class ExamDetailTab extends StatefulWidget {
-  const ExamDetailTab({super.key});
+  final String year;
+  final String month;
+  final String level;
+  const ExamDetailTab({
+    Key? key,
+    required this.year,
+    required this.month,
+    required this.level,
+  }) : super(key: key);
   @override
   State<ExamDetailTab> createState() => _ExamDetailTabState();
 }
@@ -180,12 +188,62 @@ class _ExamDetailTabState extends State<ExamDetailTab> {
               ],
             ),
             const SizedBox(height: 30),
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _ExamTypeBox('文字', '30分', Colors.orange, Colors.black),
-                _ExamTypeBox('読解', '60分', Colors.cyan, Colors.black),
-                _ExamTypeBox('聴解', '40分', Colors.lightBlue, Colors.black),
+                _ExamTypeBox('文字', '30分', Colors.orange, Colors.black,
+                    onTap: () {
+                  print("Exam type tapped");
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => Questionscreen(
+                        year: widget.year,
+                        month: widget.month,
+                        level: widget.level,
+                        examType: '文字',
+                      ),
+                    ),
+                  );
+                }),
+                _ExamTypeBox(
+                  '読解',
+                  '60分',
+                  Colors.cyan,
+                  Colors.black,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => Questionscreen(
+                          year: widget.year,
+                          month: widget.month,
+                          level: widget.level,
+                          examType: '読解',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _ExamTypeBox(
+                  '聴解',
+                  '40分',
+                  Colors.lightBlue,
+                  Colors.black,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => Questionscreen(
+                          year: widget.year,
+                          month: widget.month,
+                          level: widget.level,
+                          examType: '聴解',
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ],
@@ -200,34 +258,45 @@ class _ExamTypeBox extends StatelessWidget {
   final String duration;
   final Color bgColor;
   final Color textColor;
-  const _ExamTypeBox(this.title, this.duration, this.bgColor, this.textColor);
+  final VoidCallback onTap;
+  const _ExamTypeBox(
+    this.title,
+    this.duration,
+    this.bgColor,
+    this.textColor, {
+    required this.onTap,
+    Key? key,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: bgColor,
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Container(
-        width: 100,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(title,
-                style: TextStyle(
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        color: bgColor,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Container(
+          width: 100,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(title,
+                  style: TextStyle(
+                      color: textColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Text(duration,
+                  style: TextStyle(
                     color: textColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Text(duration,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                )),
-          ],
+                    fontSize: 14,
+                  )),
+            ],
+          ),
         ),
       ),
     );
