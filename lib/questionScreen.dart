@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:jlpt_quiz/database/database_helper.dart';
+import 'package:jlpt_quiz/model/question.dart';
 
 class Questionscreen extends StatefulWidget {
   final String year;
@@ -20,8 +22,46 @@ class Questionscreen extends StatefulWidget {
 
 class _QuestionscreenState extends State<Questionscreen> {
   int? _selectedAnswerIndex;
-  PageController get _pageController => PageController(initialPage: 0);
+  late PageController _pageController;
   final int _totalQuestions = 10;
+  Question? _currentQuestion;
+  bool _isLoadingQuestion = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 0);
+    _loadQuestion(1); // Load sub_question when screen initializes
+  }
+
+  void _loadQuestion(int questionId) async {
+    setState(() {
+      _isLoadingQuestion = true; // Set loading state
+      _selectedAnswerIndex = null; // Clear selected answer for new question
+    });
+    try {
+      // Fetch the question using its ID. In a real app, you'd map PageIndex to Question IDs.
+      // For demonstration, let's assume question IDs are sequential from 1.
+      // You might have a list of question IDs or fetch all questions for a quiz upfront.
+      final Question? fetchedQuestion =
+          await DatabaseHelper.instance.getQuestionById(questionId);
+
+      if (mounted) {
+        setState(() {
+          _currentQuestion = fetchedQuestion;
+          _isLoadingQuestion = false; // Clear loading state
+        });
+      }
+    } catch (e) {
+      print("Error loading question: $e");
+      if (mounted) {
+        setState(() {
+          _currentQuestion = null; // Indicate error or no question found
+          _isLoadingQuestion = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -147,11 +187,12 @@ class _QuestionscreenState extends State<Questionscreen> {
                                       fontWeight: FontWeight.bold)),
                             ),
                             const SizedBox(height: 20),
-                            const Center(
+                            Center(
                               child: Text(
-                                "..... What does audio say?",
+                                _currentQuestion?.subQuestion ??
+                                    "Question not available.",
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: const TextStyle(
                                     fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                             ),

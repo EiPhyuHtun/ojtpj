@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:jlpt_quiz/model/user.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 // Import your data model if you created one
+import 'package:jlpt_quiz/model/question.dart';
 
 class DatabaseHelper {
   static Database? _database;
@@ -46,6 +46,9 @@ class DatabaseHelper {
             await rootBundle.load(join("assets", "database", "jlptquiz.db"));
         List<int> bytes =
             data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+        print("##rs");
+        print(data);
+        print(bytes);
 
         // Write the bytes to the new database file.
         await File(path).writeAsBytes(bytes, flush: true);
@@ -63,7 +66,7 @@ class DatabaseHelper {
     // If it existed, it will just open it.
     return await openDatabase(
       path,
-      version: 1, // Use the version of your pre-created database
+      version: 1,
       onCreate: _onCreate,
     );
   }
@@ -81,6 +84,46 @@ class DatabaseHelper {
       )
       ''',
     );
+    print("Users table created.");
+
+    // Create the quiz table (assuming this schema)
+    await db.execute('''
+      CREATE TABLE quiz(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        year TEXT,
+        month TEXT,
+        level TEXT,
+        exam_type TEXT
+      )
+    ''');
+    print("Quiz table created.");
+
+    // Create the question_groups table (assuming a simple schema for now)
+    await db.execute('''
+      CREATE TABLE question_groups(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT
+      )
+    ''');
+    print("Question_groups table created.");
+
+    // Create the questions table based on the schema you provided
+    await db.execute('''
+      CREATE TABLE questions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question_groups_id INTEGER,
+        quiz_id INTEGER,
+        sub_question TEXT,
+        answer1 TEXT,
+        answer2 TEXT,
+        answer3 TEXT,
+        answer4 TEXT,
+        correct_answer INTEGER,
+        FOREIGN KEY(quiz_id) REFERENCES quiz(id),
+        FOREIGN KEY(question_groups_id) REFERENCES question_groups(id)
+      )
+    ''');
+    print("Questions table created.");
   }
 
   // Optional: For database migrations if your schema changes in future versions
@@ -119,6 +162,26 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getUsers() async {
     Database db = await database;
     return await db.query('users');
+  }
+
+  Future<Question?> getQuestionById(int id) async {
+    print("####ABCD");
+    print(getQuestionById);
+    final db = await database;
+    final List<Map<String, dynamic>> result = await db.query(
+      'questions',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    print("Query result for question id=$id: $result");
+
+    if (result.isNotEmpty) {
+      return Question.fromMap(result.first);
+    } else {
+      return null;
+    }
   }
 
   // Close the database (optional, as it's often kept open for the app's lifetime)
