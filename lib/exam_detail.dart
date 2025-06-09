@@ -201,7 +201,7 @@ class _ExamDetailTabState extends State<ExamDetailTab> {
                         year: widget.year,
                         month: widget.month,
                         level: widget.level,
-                        examType: '文字',
+                        examType: 'Kanji/Vocab',
                       ),
                     ),
                   );
@@ -219,7 +219,7 @@ class _ExamDetailTabState extends State<ExamDetailTab> {
                           year: widget.year,
                           month: widget.month,
                           level: widget.level,
-                          examType: '読解',
+                          examType: 'Reading',
                         ),
                       ),
                     );
@@ -238,7 +238,7 @@ class _ExamDetailTabState extends State<ExamDetailTab> {
                           year: widget.year,
                           month: widget.month,
                           level: widget.level,
-                          examType: '聴解',
+                          examType: 'Listening',
                         ),
                       ),
                     );

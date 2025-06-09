@@ -85,45 +85,6 @@ class DatabaseHelper {
       ''',
     );
     print("Users table created.");
-
-    // Create the quiz table (assuming this schema)
-    await db.execute('''
-      CREATE TABLE quiz(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        year TEXT,
-        month TEXT,
-        level TEXT,
-        exam_type TEXT
-      )
-    ''');
-    print("Quiz table created.");
-
-    // Create the question_groups table (assuming a simple schema for now)
-    await db.execute('''
-      CREATE TABLE question_groups(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT
-      )
-    ''');
-    print("Question_groups table created.");
-
-    // Create the questions table based on the schema you provided
-    await db.execute('''
-      CREATE TABLE questions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        question_groups_id INTEGER,
-        quiz_id INTEGER,
-        sub_question TEXT,
-        answer1 TEXT,
-        answer2 TEXT,
-        answer3 TEXT,
-        answer4 TEXT,
-        correct_answer INTEGER,
-        FOREIGN KEY(quiz_id) REFERENCES quiz(id),
-        FOREIGN KEY(question_groups_id) REFERENCES question_groups(id)
-      )
-    ''');
-    print("Questions table created.");
   }
 
   // Optional: For database migrations if your schema changes in future versions
@@ -162,6 +123,42 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getUsers() async {
     Database db = await database;
     return await db.query('users');
+  }
+
+  // New method to fetch questions based on year, month, level, and exam type
+  Future<List<Question>> getQuestionsByQuizParameters(
+      String year, String month, String level, String examType) async {
+    final db = await database;
+
+    // Use a JOIN query to filter questions based on quiz and year attributes
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT
+          q.id,
+          q.sub_question,
+          q.answer1,
+          q.answer2,
+          q.answer3,
+          q.answer4,
+          q.correct_answer,
+          q.quiz_id
+      FROM
+          questions AS q
+      JOIN
+          quiz AS qz ON q.quiz_id = qz.id
+      JOIN
+          year AS y ON qz.year_id = y.id
+      WHERE
+          y.year = ? AND y.month = ? AND qz.type = ? AND qz.level = ?
+    ''', [year, month, examType, level]); // Order of parameters matters!
+
+    print(
+        "Fetched ${maps.length} questions for Year: $year, Month: $month, Type: $examType, Level: $level");
+    print("Query results: $maps");
+
+    // Convert the List<Map<String, dynamic>> into a List<Question>.
+    return List.generate(maps.length, (i) {
+      return Question.fromMap(maps[i]);
+    });
   }
 
   Future<Question?> getQuestionById(int id) async {

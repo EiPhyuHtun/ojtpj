@@ -12,12 +12,12 @@ class LevelPage extends StatefulWidget {
 
 class _LevelPageState extends State<LevelPage> with WidgetsBindingObserver {
   final List<Map<String, String>> exams = [
-    {'year': '2024', 'month': '7月'},
-    {'year': '2024', 'month': '12月'},
-    {'year': '2023', 'month': '7月'},
-    {'year': '2023', 'month': '12月'},
-    {'year': '2022', 'month': '7月'},
-    {'year': '2022', 'month': '12月'},
+    {'year': '2024', 'month': '7'},
+    {'year': '2024', 'month': '12'},
+    {'year': '2023', 'month': '7'},
+    {'year': '2023', 'month': '12'},
+    {'year': '2022', 'month': '7'},
+    {'year': '2022', 'month': '12'},
   ];
 
   final List<String> levels = ['N5', 'N4', 'N3', 'N2', 'N1'];
@@ -180,7 +180,7 @@ class _LevelPageState extends State<LevelPage> with WidgetsBindingObserver {
                         ),
                       ),
                       title: Text(
-                        '${exams[index]['year']}年${exams[index]['month']}',
+                        '${exams[index]['year']}年${exams[index]['month']}月',
                         style: TextStyle(fontSize: 16),
                       ),
                       onTap: () {
