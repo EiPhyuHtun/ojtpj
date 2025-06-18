@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:jlpt_quiz/database/database_helper.dart';
-import 'package:jlpt_quiz/model/question.dart'; // Ensure your Question model is updated to handle nulls
+import 'package:jlpt_quiz/model/question.dart';
 import 'dart:async'; // Import for Timer
-import 'package:jlpt_quiz/history.dart'; // Import your HistoryScreen
+import 'package:jlpt_quiz/history.dart';
+import 'package:jlpt_quiz/model/user_attempt.dart'; // Import HistoryScreen
 
 class Questionscreen extends StatefulWidget {
   final String year;
@@ -28,44 +29,132 @@ class _QuestionscreenState extends State<Questionscreen> {
   List<Question> _questions = []; // List to hold fetched questions
   int _currentQuestionIndex = 0; // Track current question index in the list
   bool _isLoadingQuestions = true; // State for loading questions
+
   // Timer related variables
   Timer? _timer;
-  int _countdownSeconds = 10; // 10-second timer
+  int _countdownSeconds = 180; // 3 minutes = 180 seconds for the entire quiz
+  final int _totalQuizSeconds =
+      180; // Store initial total for progress calculation
+
+  // Quiz result tracking
+  int _correctAnswersCount = 0;
+  int _incorrectAnswersCount = 0;
+  int _noAnswerCount = 0;
+
+  // Map to store user's selected answer for each question (key: questionIndex, value: selectedAnswerIndex or null)
+  final Map<int, int?> _userAnswers = {};
+
+  // Dummy userId for now. In a real app, this would come from user login/session.
+  final int _currentLoggedInUserId =
+      1; // **IMPORTANT: Replace with actual user ID**
+
+  // This will hold the quiz_id of the current set of questions.
+  // Assuming all questions loaded for a specific set of parameters belong to one quiz.
+  int? _currentQuizId;
+  bool _showHint = false;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _loadQuestions();
-    _startTimer(); // Load all relevant questions
   }
 
+  // Starts the global quiz timer
   void _startTimer() {
+    _timer?.cancel(); // Cancel any existing timer before starting a new one
     _countdownSeconds =
-        10; // Reset timer for each question if needed, or once for the whole quiz
-    _timer?.cancel(); // Cancel any existing timer
+        _totalQuizSeconds; // Reset to 3 minutes for the whole quiz
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_countdownSeconds > 0) {
-        setState(() {
-          _countdownSeconds--;
-        });
+        if (mounted) {
+          // Ensure widget is still mounted before calling setState
+          setState(() {
+            _countdownSeconds--;
+          });
+        }
       } else {
+        // Timer has run out
         _timer?.cancel(); // Stop the timer
-        // Navigate to HistoryScreen when timer ends
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HistoryScreen()),
-        );
+        print("Quiz time's up! Calculating results and navigating.");
+        _calculateResultsAndNavigate(); // Call new method
       }
     });
   }
 
+  void _calculateResultsAndNavigate() async {
+    _timer?.cancel();
+
+    _userAnswers[_currentQuestionIndex] = _selectedAnswerIndex;
+
+    _calculateResults();
+
+    await _saveUserAttempt();
+
+    // Assuming you have currentUserId stored somewhere
+    int currentUserId = 1; // Replace with your actual user ID fetch logic
+
+    List<UserAttempt> attempts =
+        await DatabaseHelper.instance.getUserAttemptHistory(currentUserId);
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HistoryScreen(
+          correct: _correctAnswersCount,
+          incorrect: _incorrectAnswersCount,
+          unanswered: _noAnswerCount,
+          scorePercent:
+              ((_correctAnswersCount / _questions.length) * 100).round(),
+          attemptList: attempts,
+        ),
+      ),
+    );
+  }
+
+  // Calculates the correct, incorrect, and unanswered counts
+  void _calculateResults() {
+    _correctAnswersCount = 0;
+    _incorrectAnswersCount = 0;
+    _noAnswerCount = 0;
+    // Get the total number of questions. This is crucial for percentage calculation.
+    final int totalQuestions =
+        _questions.length; // <--- This is your "total answer" (total questions)
+
+    for (int i = 0; i < _questions.length; i++) {
+      final Question question = _questions[i];
+      final int? userAnswer =
+          _userAnswers[i]; // Get user's answer for this question
+
+      if (userAnswer == null) {
+        _noAnswerCount++;
+      } else if (question.correctAnswer != null &&
+          userAnswer == question.correctAnswer) {
+        _correctAnswersCount++;
+      } else {
+        _incorrectAnswersCount++;
+      }
+    }
+
+    print("\n--- Quiz Results ---");
+    print("Correct Answers: $_correctAnswersCount");
+    print("Incorrect Answers: $_incorrectAnswersCount");
+    print("Unanswered Questions: $_noAnswerCount");
+    print("---------------------\n");
+  }
+
+  // Loads questions from the database based on quiz parameters
   void _loadQuestions() async {
     setState(() {
       _isLoadingQuestions = true;
       _questions = []; // Clear previous questions
       _currentQuestionIndex = 0; // Reset index
       _selectedAnswerIndex = null; // Clear selected answer
+      _userAnswers.clear(); // Clear previous answers
+      _correctAnswersCount = 0; // Reset scores
+      _incorrectAnswersCount = 0;
+      _noAnswerCount = 0;
+      _currentQuizId = null; // Reset quiz ID
     });
     try {
       final List<Question> fetchedQuestions =
@@ -83,6 +172,17 @@ class _QuestionscreenState extends State<Questionscreen> {
           if (_questions.isEmpty) {
             print("No questions found for the selected criteria.");
             // Optionally, show a dialog or navigate back here
+          } else {
+            // Initialize _userAnswers map for all questions as null (unanswered)
+            for (int i = 0; i < _questions.length; i++) {
+              _userAnswers[i] = null;
+            }
+            // Capture the quiz_id from the first question.
+            // This assumes all questions loaded belong to the same quiz.
+            if (_questions.isNotEmpty) {
+              _currentQuizId = _questions.first.quizId;
+            }
+            _startTimer(); // Start the global timer only when questions are loaded
           }
         });
       }
@@ -95,10 +195,38 @@ class _QuestionscreenState extends State<Questionscreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load questions: ${e.toString()}'),
+            content: Text('質問を読み込めませんでした: ${e.toString()}'),
           ),
         );
       }
+    }
+  }
+
+  // Saves the user's attempt results to the database
+  Future<void> _saveUserAttempt() async {
+    if (_currentQuizId == null) {
+      print("Error: Cannot save user attempt, quiz ID is null.");
+      // Optionally show an error to the user
+      return;
+    }
+
+    try {
+      await DatabaseHelper.instance.insertUserAttempt(
+        _currentLoggedInUserId, // Use the actual user ID
+        _currentQuizId!, // Use the captured quiz ID
+        _correctAnswersCount,
+        _incorrectAnswersCount,
+        _noAnswerCount,
+      );
+      print("User attempt saved to database successfully!");
+    } catch (e) {
+      print("Error saving user attempt: $e");
+      // Handle error, e.g., show a snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('クイズの結果を保存できませんでした: ${e.toString()}'),
+        ),
+      );
     }
   }
 
@@ -111,8 +239,40 @@ class _QuestionscreenState extends State<Questionscreen> {
   @override
   void dispose() {
     _pageController.dispose();
-    _timer?.cancel();
+    _timer?.cancel(); // Crucial to cancel the timer when the widget is disposed
     super.dispose();
+  }
+
+  String? _getHintText() {
+    final Question? question = _currentQuestion;
+    if (question == null) return null;
+
+    String? correctAnswerText;
+    switch (question.correctAnswer) {
+      case 1:
+        correctAnswerText = question.answer1;
+        break;
+      case 2:
+        correctAnswerText = question.answer2;
+        break;
+      case 3:
+        correctAnswerText = question.answer3;
+        break;
+      case 4:
+        correctAnswerText = question.answer4;
+        break;
+      default:
+        correctAnswerText = null;
+    }
+
+    if (correctAnswerText != null && correctAnswerText.isNotEmpty) {
+      if (correctAnswerText.length >= 2) {
+        return 'ヒント: ${correctAnswerText.substring(0, 2)}。。。';
+      } else {
+        return 'ヒント: ${correctAnswerText}。。。';
+      }
+    }
+    return null;
   }
 
   @override
@@ -120,8 +280,8 @@ class _QuestionscreenState extends State<Questionscreen> {
     if (_isLoadingQuestions) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(
-              '${widget.level} ${widget.year}年${widget.month} ${widget.examType}試験'),
+          title:
+              Text('${widget.level} ${widget.year}年${widget.month} 日本語クイズテスト'),
           backgroundColor: Colors.yellow,
         ),
         body: const Center(
@@ -133,23 +293,22 @@ class _QuestionscreenState extends State<Questionscreen> {
     if (_questions.isEmpty) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(
-              '${widget.level} ${widget.year}年${widget.month} ${widget.examType}試験'),
+          title:
+              Text('${widget.level}-${widget.year}年${widget.month} 日本語クイズテスト'),
           backgroundColor: Colors.yellow,
         ),
         body: const Center(
-          child: Text('No questions available for this selection.'),
+          child: Text('この選択に使用できる質問はありません。'),
         ),
       );
     }
 
-    // Ensure _currentQuestion is not null before proceeding to build the question UI
     final Question? currentQuestion = _currentQuestion;
     if (currentQuestion == null) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(
-              '${widget.level} ${widget.year}年${widget.month} ${widget.examType}試験'),
+          title:
+              Text('${widget.level}-${widget.year}年${widget.month} 日本語クイズテスト'),
           backgroundColor: Colors.yellow,
         ),
         body: const Center(
@@ -158,7 +317,6 @@ class _QuestionscreenState extends State<Questionscreen> {
       );
     }
 
-    // Now, answer options are dynamic based on _currentQuestion
     final List<String> answerOptions = [
       currentQuestion.answer1 ?? 'Answer 1 (N/A)',
       currentQuestion.answer2 ?? 'Answer 2 (N/A)',
@@ -169,33 +327,36 @@ class _QuestionscreenState extends State<Questionscreen> {
     final int totalQuestions = _questions.length;
     final int displayQuestionNumber = _currentQuestionIndex + 1;
 
+    String minutes = (_countdownSeconds ~/ 60).toString().padLeft(2, '0');
+    String seconds = (_countdownSeconds % 60).toString().padLeft(2, '0');
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-            '${widget.level} ${widget.year}年${widget.month}月 ${widget.examType}試験'),
+        title:
+            Text('${widget.level}-${widget.year}年${widget.month}月 日本語クイズテスト'),
         backgroundColor: Colors.yellow,
       ),
       body: SafeArea(
         child: PageView.builder(
           controller: _pageController,
-          itemCount: totalQuestions, // Use the actual number of questions
+          itemCount: totalQuestions,
           onPageChanged: (newPageIndex) {
             setState(() {
-              _currentQuestionIndex = newPageIndex; // Update current index
-              _selectedAnswerIndex =
-                  null; // Clear selected answer for new question
+              // Save the selected answer for the current question before moving
+              _userAnswers[_currentQuestionIndex] = _selectedAnswerIndex;
+              _currentQuestionIndex = newPageIndex;
+              // Load the previously selected answer for the new question
+              _selectedAnswerIndex = _userAnswers[newPageIndex];
+              _showHint = false;
             });
           },
           itemBuilder: (context, questionIndex) {
-            // Ensure we are displaying the correct question for the current page
             final Question? question = _questions[questionIndex];
 
             if (question == null) {
-              return const Center(
-                  child: Text('Error: Question data is missing.'));
+              return const Center(child: Text('エラー: 質問データがありません。'));
             }
 
-            // Using null-aware operators and providing defaults for display
             final List<String> answers = [
               question.answer1 ?? 'Answer 1 missing',
               question.answer2 ?? 'Answer 2 missing',
@@ -256,58 +417,75 @@ class _QuestionscreenState extends State<Questionscreen> {
                             width: 60,
                             child: CircularProgressIndicator(
                               value: _countdownSeconds /
-                                  10.0, // Dynamic progress for 10 seconds
+                                  _totalQuizSeconds
+                                      .toDouble(), // Dynamic progress for 3 minutes
                               strokeWidth: 6,
                               backgroundColor: Colors.white,
                               color: Colors.deepPurple,
                             ),
                           ),
                           Text(
-                            "$_countdownSeconds", // Display countdown
+                            "$minutes:$seconds", // Display countdown as MM:SS
                             style: const TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Container(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.lightbulb_outline,
-                                    color: Colors.orange),
-                                SizedBox(width: 5),
-                                Text("Hint",
-                                    style: TextStyle(color: Colors.orange)),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Center(
-                              child: Text(
-                                  "問題 ${displayQuestionNumber.toString().padLeft(2, '0')}",
-                                  style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(height: 20),
-                            Center(
-                              child: Text(
-                                question.subQuestion ??
-                                    "Question text not available.", // Handle null subQuestion
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _showHint = !_showHint;
+                          });
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.lightbulb_outline,
+                                      color: Colors.orange),
+                                  SizedBox(width: 5),
+                                  Text("ヒント",
+                                      style: TextStyle(color: Colors.orange)),
+                                ],
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 10),
+                              Center(
+                                child: Text(
+                                    "問題 ${displayQuestionNumber.toString().padLeft(2, '0')}",
+                                    style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(height: 20),
+                              Center(
+                                child: Text(
+                                  question.subQuestion ?? "質問テキストが利用できません。",
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              if (_showHint)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 10.0),
+                                  child: Text(
+                                    'ヒント: ${_getHintText() ?? '利用できるヒントがありません。'}',
+                                    style: const TextStyle(
+                                        fontSize: 16, color: Colors.blue),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -321,11 +499,9 @@ class _QuestionscreenState extends State<Questionscreen> {
                       child: Column(
                         children: [
                           const SizedBox(height: 10),
-                          // Use the 'answers' list which accounts for potential nulls
                           ...answers.asMap().entries.map((entry) {
                             final int index = entry.key;
                             final String text = entry.value;
-
                             bool isSelected =
                                 (_selectedAnswerIndex == index + 1);
 
@@ -356,12 +532,16 @@ class _QuestionscreenState extends State<Questionscreen> {
                                         : FontWeight.normal,
                                   ),
                                 ),
-                                trailing: Radio<int>(
-                                  value: index + 1,
-                                  groupValue: _selectedAnswerIndex,
-                                  onChanged: (int? value) {
+                                trailing: Checkbox(
+                                  value: isSelected,
+                                  onChanged: (bool? value) {
                                     setState(() {
-                                      _selectedAnswerIndex = value;
+                                      if (value == true) {
+                                        _selectedAnswerIndex = index + 1;
+                                      } else if (_selectedAnswerIndex ==
+                                          index + 1) {
+                                        _selectedAnswerIndex = null;
+                                      }
                                       print(
                                           'Selected answer: $_selectedAnswerIndex');
                                     });
@@ -370,7 +550,12 @@ class _QuestionscreenState extends State<Questionscreen> {
                                 ),
                                 onTap: () {
                                   setState(() {
-                                    _selectedAnswerIndex = index + 1;
+                                    if (_selectedAnswerIndex == index + 1) {
+                                      _selectedAnswerIndex = null; // Deselect
+                                    } else {
+                                      _selectedAnswerIndex =
+                                          index + 1; // Select this one
+                                    }
                                     print(
                                         'Selected answer: $_selectedAnswerIndex');
                                   });
@@ -381,45 +566,20 @@ class _QuestionscreenState extends State<Questionscreen> {
                           const SizedBox(height: 20),
                           ElevatedButton(
                             onPressed: () {
-                              if (_selectedAnswerIndex == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content:
-                                          Text('Please select an answer!')),
-                                );
-                                return; // Exit if no answer is selected
-                              }
+                              // Save the selected answer for the current question
+                              _userAnswers[_currentQuestionIndex] =
+                                  _selectedAnswerIndex;
 
-                              // Check if the selected answer is correct (ensure correctAnswer is not null)
-                              if (currentQuestion.correctAnswer != null) {
-                                if (_selectedAnswerIndex ==
-                                    currentQuestion.correctAnswer) {
-                                  print('Correct answer selected!');
-                                  // Add logic for correct answer (e.g., score increment)
-                                } else {
-                                  print('Incorrect answer selected.');
-                                  // Add logic for incorrect answer
-                                }
-                              } else {
-                                print(
-                                    'Warning: Correct answer not available for this question.');
-                              }
-
-                              // Advance to the next question or finish the quiz
                               if (_currentQuestionIndex < totalQuestions - 1) {
                                 _pageController.nextPage(
                                   duration: const Duration(milliseconds: 300),
                                   curve: Curves.easeIn,
                                 );
                               } else {
-                                // Last question, navigate to results screen or finish quiz
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Quiz Finished!')),
-                                );
-                                // Implement navigation to results screen here
-                                Navigator.pop(
-                                    context); // Example: Go back to previous screen
+                                // All questions have been answered or "Finish" button pressed
+                                print(
+                                    "All questions answered! Calculating results and navigating.");
+                                _calculateResultsAndNavigate();
                               }
                             },
                             style: ElevatedButton.styleFrom(
@@ -432,7 +592,7 @@ class _QuestionscreenState extends State<Questionscreen> {
                             ),
                             child: Text(
                                 _currentQuestionIndex == totalQuestions - 1
-                                    ? "Finish"
+                                    ? "仕上げる"
                                     : "次へ", // "Next" or "Finish" button text
                                 style: const TextStyle(
                                     fontSize: 20, color: Colors.white)),

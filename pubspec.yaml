@@ -34,6 +34,7 @@ dependencies:
   http: ^0.13.6
   sqflite: ^2.3.2
   path: ^1.8.3
+  intl: ^0.18.1
   
 # Web support
 dependency_overrides:
@@ -71,8 +72,11 @@ flutter:
     - assets/images/curve_background.png
     - assets/images/girl.png
     - assets/images/history.png
-    - assets/images/home.jpg
-    - assets/images/profile.jpg
+    - assets/images/home.png
+    - assets/images/profile.png
+    - assets/images/trophy.png
+    - assets/images/crown.jpg
+    
     # database accept
     - assets/database/jlptquiz.db
 

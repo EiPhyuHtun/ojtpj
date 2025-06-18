@@ -73,7 +73,7 @@ class _LevelPageState extends State<LevelPage> with WidgetsBindingObserver {
                 Container(
                   height: 210,
                   width: double.infinity,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       colors: [Color(0xFFFFF176), Color(0xFFFFEB3B)],
                       begin: Alignment.topCenter,
@@ -86,7 +86,7 @@ class _LevelPageState extends State<LevelPage> with WidgetsBindingObserver {
                   left: 0,
                   right: 0,
                   child: Container(
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: Color(0xFFFFFBEA),
                       borderRadius:
                           BorderRadius.vertical(top: Radius.circular(40)),
@@ -94,7 +94,7 @@ class _LevelPageState extends State<LevelPage> with WidgetsBindingObserver {
                     child: Column(
                       children: [
                         Transform.translate(
-                          offset: Offset(0, -30),
+                          offset: const Offset(0, -30),
                           child: _currentUser != null &&
                                   _currentUser!.userImage != null
                               ? CircleAvatar(
@@ -115,8 +115,8 @@ class _LevelPageState extends State<LevelPage> with WidgetsBindingObserver {
                         Text(
                           _currentUser != null
                               ? _currentUser!.userName
-                              : 'User1',
-                          style: TextStyle(
+                              : '名前未設定',
+                          style: const TextStyle(
                               fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                       ],
@@ -125,9 +125,9 @@ class _LevelPageState extends State<LevelPage> with WidgetsBindingObserver {
                 ),
               ],
             ),
-            SizedBox(height: 80),
+            const SizedBox(height: 80),
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: levels.map((level) {
@@ -139,8 +139,8 @@ class _LevelPageState extends State<LevelPage> with WidgetsBindingObserver {
                       });
                     },
                     child: Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 8),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? Colors.yellow[700]
@@ -164,16 +164,16 @@ class _LevelPageState extends State<LevelPage> with WidgetsBindingObserver {
               child: Container(
                 color: Colors.white,
                 child: ListView.builder(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   itemCount: exams.length,
                   itemBuilder: (context, index) {
                     return ListTile(
-                      contentPadding: EdgeInsets.symmetric(vertical: 15),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 15),
                       leading: CircleAvatar(
                         backgroundColor: Colors.purple[100],
                         child: Text(
                           exams[index]['year']!,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.purple,
                             fontWeight: FontWeight.bold,
                           ),
@@ -181,7 +181,7 @@ class _LevelPageState extends State<LevelPage> with WidgetsBindingObserver {
                       ),
                       title: Text(
                         '${exams[index]['year']}年${exams[index]['month']}月',
-                        style: TextStyle(fontSize: 16),
+                        style: const TextStyle(fontSize: 16),
                       ),
                       onTap: () {
                         Navigator.push(

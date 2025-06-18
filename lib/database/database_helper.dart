@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:jlpt_quiz/model/user.dart';
+import 'package:jlpt_quiz/model/user_attempt.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -66,15 +67,30 @@ class DatabaseHelper {
     // If it existed, it will just open it.
     return await openDatabase(
       path,
-      version: 1,
+      version:
+          3, // **IMPORTANT: Increment this to trigger onUpgrade for existing databases**
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade, // Uncommented for database migrations
     );
+  }
+
+  // Helper method to load image bytes from assets
+  Future<Uint8List?> _loadImageBytesFromAssets(String assetPath) async {
+    try {
+      final ByteData data = await rootBundle.load(assetPath);
+      return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    } catch (e) {
+      print("Error loading image from assets at $assetPath: $e");
+      // Consider throwing an error or providing a fallback if the image is critical
+      return null;
+    }
   }
 
   // This is called when the database is first created.
   Future<void> _onCreate(Database db, int version) async {
-    // Run the CREATE TABLE statement on the database.
     print("on create...");
+
+    // Create users table
     await db.execute(
       '''
       CREATE TABLE users(
@@ -85,15 +101,91 @@ class DatabaseHelper {
       ''',
     );
     print("Users table created.");
+
+    // Load default image bytes using 'profile.png'
+    final Uint8List? defaultUserImageBytes = await _loadImageBytesFromAssets(
+        'assets/images/profile.png'); // *** Changed here ***
+
+    // Insert a default user with the image
+    await db.insert(
+      'users',
+      {
+        'userName': 'Guest',
+        'userImage': defaultUserImageBytes, // Use the loaded bytes
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    print("Default user with profile.png image inserted into users table.");
+
+    // Create user_attempt table
+    await db.execute(
+      '''
+      CREATE TABLE user_attempt(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        quiz_id INTEGER NOT NULL,
+        correct_score INTEGER DEFAULT 0,
+        incorrect_score INTEGER DEFAULT 0,
+        incomplete_score INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (quiz_id) REFERENCES quiz (id) ON DELETE CASCADE
+      )
+      ''',
+    );
+    print("user_attempt table created.");
   }
 
-  // Optional: For database migrations if your schema changes in future versions
-  // Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-  //   if (oldVersion < 2) {
-  //     // Example: Add a new column in version 2
-  //     await db.execute('ALTER TABLE dogs ADD COLUMN breed TEXT');
-  //   }
-  // }
+  // Called when the database needs to be upgraded (schema changes)
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    print("onUpgrade called: $oldVersion -> $newVersion");
+    // Example: Upgrade path from version 1 to 2
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE user_attempt(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          quiz_id INTEGER NOT NULL,
+          correct_score INTEGER DEFAULT 0,
+          incorrect_score INTEGER DEFAULT 0,
+          incomplete_score INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users (id),
+          FOREIGN KEY (quiz_id) REFERENCES quiz (id)
+        )
+      ''');
+      print("user_attempt table created during upgrade.");
+
+      // Logic for version 3: Insert default user with image if it doesn't exist
+      if (oldVersion < 3) {
+        List<Map<String, dynamic>> users = await db.query('users');
+        if (users.isEmpty) {
+          // Load default image bytes using 'profile.png' during upgrade
+          final Uint8List? defaultUserImageBytes =
+              await _loadImageBytesFromAssets(
+                  'assets/images/profile.png'); // *** Changed here ***
+
+          await db.insert(
+            'users',
+            {
+              'userName': 'Guest',
+              'userImage': defaultUserImageBytes, // Use the loaded bytes
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          print(
+              "Default 'Guest' user with profile.png image inserted during upgrade from oldVersion < 3.");
+        } else {
+          print(
+              "Users table already contains data, skipping default user insertion during upgrade.");
+        }
+      }
+    }
+    // Add more 'if' blocks for future version upgrades:
+    // if (oldVersion < 3) {
+    //   // Add new tables or alter existing ones for version 3
+    // }
+  }
 
   // --- CRUD Operations ---
 
@@ -119,7 +211,7 @@ class DatabaseHelper {
     );
   }
 
-  // Get all images
+  // Get all users
   Future<List<Map<String, dynamic>>> getUsers() async {
     Database db = await database;
     return await db.query('users');
@@ -179,6 +271,75 @@ class DatabaseHelper {
     } else {
       return null;
     }
+  }
+
+  // Method to insert a user attempt
+  Future<int> insertUserAttempt(int userId, int quizId, int correctScore,
+      int incorrectScore, int incompleteScore) async {
+    final db = await database;
+    String createdAt = DateTime.now().toIso8601String();
+    return await db.insert(
+      'user_attempt',
+      {
+        'user_id': userId,
+        'quiz_id': quizId,
+        'correct_score': correctScore,
+        'incorrect_score': incorrectScore,
+        'incomplete_score': incompleteScore,
+        'created_at': createdAt,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+// Inside DatabaseHelper class
+
+  Future<List<UserAttempt>> getUserAttemptHistory(int userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+    SELECT
+        ua.id,
+        ua.user_id,
+        ua.quiz_id,
+        ua.correct_score,
+        ua.incorrect_score,
+        ua.incomplete_score,
+        ua.created_at,
+        qz.type AS quiz_type
+    FROM
+        user_attempt AS ua
+    JOIN
+        quiz AS qz ON ua.quiz_id = qz.id
+    JOIN
+        year AS y ON qz.year_id = y.id
+    WHERE
+        ua.user_id = ?
+    ORDER BY
+        ua.created_at DESC
+  ''', [userId]);
+
+    print("Fetched ${maps.length} user attempts for user ID: $userId");
+    print("User attempt history results: $maps");
+
+    // Convert to List<UserAttempt>
+    return List.generate(maps.length, (i) {
+      return UserAttempt.fromMap(maps[i]);
+    });
+  }
+
+  Future<Uint8List?> getUserImageById(int userId) async {
+    final db = await DatabaseHelper.instance.database;
+    final result = await db.query(
+      'users',
+      columns: ['userImage'],
+      where: 'id = ?',
+      whereArgs: [userId],
+      limit: 1,
+    );
+
+    if (result.isNotEmpty) {
+      return result.first['userImage'] as Uint8List?;
+    }
+    return null;
   }
 
   // Close the database (optional, as it's often kept open for the app's lifetime)

@@ -52,7 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _onProfileUpdated() {
     _loadUser(); // Reload user to refresh UI (optional, but good for consistency)
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile Updated Successfully')),
+      const SnackBar(content: Text('プロフィールが正常に更新されました。')),
     );
   }
 
@@ -105,13 +105,12 @@ class _SignupContentState extends State<_SignupContent> {
       await dbHelper.insertUser(
           User(userName: nameController.text, userImage: _selectedImageBytes!));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User Created Successfully')),
+        const SnackBar(content: Text('ユーザーが正常に作成されました。')),
       );
       widget.onUserCreated();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please select an image and enter a title.')),
+        const SnackBar(content: Text('画像を選択して名前を入力してください。')),
       );
     }
   }

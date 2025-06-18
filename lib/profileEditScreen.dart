@@ -64,8 +64,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       widget.onProfileUpdated(); // Notify the parent ProfileScreen
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please select an image and enter a name.')),
+        const SnackBar(content: Text('画像を選択して名前を入力してください。')),
       );
     }
   }

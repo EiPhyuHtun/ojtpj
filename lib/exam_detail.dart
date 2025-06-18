@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jlpt_quiz/database/database_helper.dart';
 import 'package:jlpt_quiz/model/user.dart';
+import 'package:jlpt_quiz/model/user_attempt.dart';
 import 'package:jlpt_quiz/profileScreen.dart';
 import 'history.dart';
 import 'questionScreen.dart';
@@ -25,6 +26,8 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentIndex = 0;
+  List<UserAttempt> _userAttempts = [];
+  bool _historyLoaded = false;
 
   @override
   void initState() {
@@ -32,14 +35,29 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
-        setState(() {
-          _currentIndex = _tabController.index;
-        });
+        _onTabTapped(_tabController.index);
       }
     });
   }
 
-  void _onTabTapped(int index) {
+  Future<void> _loadHistory() async {
+    final userList = await DatabaseHelper.instance.getUsers();
+    if (userList.isNotEmpty) {
+      final userId = userList.first['id'] as int;
+      final history =
+          await DatabaseHelper.instance.getUserAttemptHistory(userId);
+      setState(() {
+        _userAttempts = history;
+        _historyLoaded = true;
+      });
+    }
+  }
+
+  void _onTabTapped(int index) async {
+    if (index == 2 && !_historyLoaded) {
+      await _loadHistory();
+    }
+
     setState(() {
       _currentIndex = index;
       _tabController.animateTo(index);
@@ -57,8 +75,8 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
     final List<Widget> _pages = [
       ExamDetailTab(
           year: widget.year, month: widget.month, level: widget.level),
-      ProfileScreen(),
-      const HistoryScreen(),
+      const ProfileScreen(),
+      HistoryScreen(attemptList: _userAttempts),
     ];
     return Scaffold(
         body: TabBarView(
@@ -74,7 +92,7 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
               icon: SizedBox(
                 height: 30,
                 width: 30,
-                child: Image.asset('assets/images/home.jpg'),
+                child: Image.asset('assets/images/home.png'),
               ),
               label: 'ホーム',
             ),
@@ -82,7 +100,7 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
               icon: SizedBox(
                 height: 30,
                 width: 30,
-                child: Image.asset('assets/images/profile.jpg'),
+                child: Image.asset('assets/images/profile.png'),
               ),
               label: 'プロフィール',
             ),
@@ -137,116 +155,118 @@ class _ExamDetailTabState extends State<ExamDetailTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            Image.asset(
-              'assets/images/girl.png',
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
-            const SizedBox(height: 30),
-            Padding(
-              padding: const EdgeInsets.only(left: 12),
-              child: Row(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Image.asset(
+                'assets/images/girl.png',
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+              const SizedBox(height: 30),
+              Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    _currentUser != null
+                        ? CircleAvatar(
+                            radius: 45,
+                            backgroundColor:
+                                const Color.fromARGB(255, 245, 193, 193),
+                            backgroundImage:
+                                MemoryImage(_currentUser!.userImage!),
+                          )
+                        : const CircleAvatar(
+                            radius: 45,
+                            backgroundColor:
+                                const Color.fromARGB(255, 245, 193, 193),
+                            child: Icon(Icons.person_outline,
+                                size: 40, color: Colors.white),
+                          ),
+                    const SizedBox(width: 20),
+                    Text(
+                      _currentUser != null ? _currentUser!.userName : '名前未設定 ',
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  _currentUser != null
-                      ? CircleAvatar(
-                          radius: 45,
-                          backgroundColor:
-                              const Color.fromARGB(255, 245, 193, 193),
-                          backgroundImage:
-                              MemoryImage(_currentUser!.userImage!),
-                        )
-                      : const CircleAvatar(
-                          radius: 45,
-                          backgroundColor:
-                              const Color.fromARGB(255, 245, 193, 193),
-                          child: Icon(Icons.person_outline,
-                              size: 40, color: Colors.white),
-                        ),
-                  const SizedBox(width: 20),
-                  Text(
-                    _currentUser != null ? _currentUser!.userName : 'User1',
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
+                  Padding(
+                    padding: EdgeInsets.only(left: 12),
+                    child: Text(
+                      '試験タイプ',
+                      style: TextStyle(fontSize: 25),
+                    ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 40),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(left: 12),
-                  child: Text(
-                    '試験タイプ',
-                    style: TextStyle(fontSize: 25),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _ExamTypeBox('文字', '30分', Colors.orange, Colors.black,
+              const SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _ExamTypeBox('文字', '30分', Colors.orange, Colors.black,
+                      onTap: () {
+                    print("Exam type tapped");
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => Questionscreen(
+                          year: widget.year,
+                          month: widget.month,
+                          level: widget.level,
+                          examType: 'Kanji/Vocab',
+                        ),
+                      ),
+                    );
+                  }),
+                  _ExamTypeBox(
+                    '読解',
+                    '60分',
+                    Colors.cyan,
+                    Colors.black,
                     onTap: () {
-                  print("Exam type tapped");
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => Questionscreen(
-                        year: widget.year,
-                        month: widget.month,
-                        level: widget.level,
-                        examType: 'Kanji/Vocab',
-                      ),
-                    ),
-                  );
-                }),
-                _ExamTypeBox(
-                  '読解',
-                  '60分',
-                  Colors.cyan,
-                  Colors.black,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => Questionscreen(
-                          year: widget.year,
-                          month: widget.month,
-                          level: widget.level,
-                          examType: 'Reading',
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Questionscreen(
+                            year: widget.year,
+                            month: widget.month,
+                            level: widget.level,
+                            examType: 'Reading',
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-                _ExamTypeBox(
-                  '聴解',
-                  '40分',
-                  Colors.lightBlue,
-                  Colors.black,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => Questionscreen(
-                          year: widget.year,
-                          month: widget.month,
-                          level: widget.level,
-                          examType: 'Listening',
+                      );
+                    },
+                  ),
+                  _ExamTypeBox(
+                    '聴解',
+                    '40分',
+                    Colors.lightBlue,
+                    Colors.black,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Questionscreen(
+                            year: widget.year,
+                            month: widget.month,
+                            level: widget.level,
+                            examType: 'Listening',
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
