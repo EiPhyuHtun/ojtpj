@@ -340,6 +340,7 @@ class _QuestionscreenState extends State<Questionscreen> {
         child: PageView.builder(
           controller: _pageController,
           itemCount: totalQuestions,
+          physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (newPageIndex) {
             setState(() {
               // Save the selected answer for the current question before moving
@@ -595,7 +596,7 @@ class _QuestionscreenState extends State<Questionscreen> {
                                     ? "仕上げる"
                                     : "次へ", // "Next" or "Finish" button text
                                 style: const TextStyle(
-                                    fontSize: 20, color: Colors.white)),
+                                    fontSize: 18, color: Colors.white)),
                           ),
                           const SizedBox(height: 30),
                         ],
