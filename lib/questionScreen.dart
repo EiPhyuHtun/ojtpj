@@ -9,7 +9,7 @@ class Questionscreen extends StatefulWidget {
   final String year;
   final String month;
   final String level;
-  final String examType;
+  final String examType; // This will now also influence the timer
 
   const Questionscreen({
     Key? key,
@@ -32,9 +32,10 @@ class _QuestionscreenState extends State<Questionscreen> {
 
   // Timer related variables
   Timer? _timer;
-  int _countdownSeconds = 180; // 3 minutes = 180 seconds for the entire quiz
-  final int _totalQuizSeconds =
-      180; // Store initial total for progress calculation
+  int _countdownSeconds =
+      0; // Will be set dynamically based on level and examType
+  int _totalQuizSeconds =
+      0; // Will store initial total for progress calculation
 
   // Quiz result tracking
   int _correctAnswersCount = 0;
@@ -60,11 +61,90 @@ class _QuestionscreenState extends State<Questionscreen> {
     _loadQuestions();
   }
 
+  // Helper function to get the total quiz duration based on the JLPT level and exam type
+  int _getExamTypeDurationInSeconds(String level, String examType) {
+    // All times are in minutes, converted to seconds
+    switch (level.toUpperCase()) {
+      case 'N1':
+        switch (examType) {
+          case 'Kanji/Vocab':
+            return 50 * 60;
+          case 'Reading':
+            return 60 * 60;
+          case 'Listening':
+            return 60 * 60;
+          case 'Total': // If a 'Total' exam type is specifically selected
+            return 170 * 60;
+          default:
+            print(
+                "Warning: Unknown exam type '$examType' for N1, defaulting to total time.");
+            return 170 * 60; // Fallback for N1
+        }
+      case 'N2':
+        switch (examType) {
+          case 'Kanji/Vocab':
+            return 50 * 60;
+          case 'Reading':
+            return 55 * 60;
+          case 'Listening':
+            return 50 * 60;
+          case 'Total': // If a 'Total' exam type is specifically selected
+            return 155 * 60;
+          default:
+            print(
+                "Warning: Unknown exam type '$examType' for N2, defaulting to total time.");
+            return 155 * 60; // Fallback for N2
+        }
+      case 'N3':
+        // For N3, N4, N5, if specific exam type timings aren't provided,
+        // we can set a reasonable default, or use the total time for that level.
+        // I'm using the total time for these individual sections as a default.
+        switch (examType) {
+          case 'Kanji/Vocab':
+          case 'Reading':
+          case 'Listening':
+          case 'Total':
+            return 125 * 60; // N3 total time
+          default:
+            print(
+                "Warning: Unknown exam type '$examType' for N3, defaulting to total time.");
+            return 125 * 60;
+        }
+      case 'N4':
+        switch (examType) {
+          case 'Kanji/Vocab':
+          case 'Reading':
+          case 'Listening':
+          case 'Total':
+            return 105 * 60; // N4 total time
+          default:
+            print(
+                "Warning: Unknown exam type '$examType' for N4, defaulting to total time.");
+            return 105 * 60;
+        }
+      case 'N5':
+        switch (examType) {
+          case 'Kanji/Vocab':
+          case 'Reading':
+          case 'Listening':
+          case 'Total':
+            return 80 * 60; // N5 total time
+          default:
+            print(
+                "Warning: Unknown exam type '$examType' for N5, defaulting to total time.");
+            return 80 * 60;
+        }
+      default:
+        print(
+            "Warning: Unknown level '$level', defaulting to 80 minutes (N5 Total).");
+        return 80 * 60; // Default fallback if level is unknown
+    }
+  }
+
   // Starts the global quiz timer
   void _startTimer() {
     _timer?.cancel(); // Cancel any existing timer before starting a new one
-    _countdownSeconds =
-        _totalQuizSeconds; // Reset to 3 minutes for the whole quiz
+    // _countdownSeconds is already set correctly in _loadQuestions
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_countdownSeconds > 0) {
         if (mounted) {
@@ -85,6 +165,7 @@ class _QuestionscreenState extends State<Questionscreen> {
   void _calculateResultsAndNavigate() async {
     _timer?.cancel();
 
+    // Ensure the answer for the current (last) question is saved before calculating results
     _userAnswers[_currentQuestionIndex] = _selectedAnswerIndex;
 
     _calculateResults();
@@ -104,8 +185,9 @@ class _QuestionscreenState extends State<Questionscreen> {
           correct: _correctAnswersCount,
           incorrect: _incorrectAnswersCount,
           unanswered: _noAnswerCount,
-          scorePercent:
-              ((_correctAnswersCount / _questions.length) * 100).round(),
+          scorePercent: _questions.isNotEmpty
+              ? ((_correctAnswersCount / _questions.length) * 100).round()
+              : 0, // Handle division by zero
           attemptList: attempts,
         ),
       ),
@@ -155,6 +237,7 @@ class _QuestionscreenState extends State<Questionscreen> {
       _incorrectAnswersCount = 0;
       _noAnswerCount = 0;
       _currentQuizId = null; // Reset quiz ID
+      _timer?.cancel(); // Ensure any existing timer is cancelled
     });
     try {
       final List<Question> fetchedQuestions =
@@ -182,6 +265,12 @@ class _QuestionscreenState extends State<Questionscreen> {
             if (_questions.isNotEmpty) {
               _currentQuizId = _questions.first.quizId;
             }
+
+            // Set the total quiz duration based on the level AND examType
+            _totalQuizSeconds =
+                _getExamTypeDurationInSeconds(widget.level, widget.examType);
+            _countdownSeconds = _totalQuizSeconds; // Initialize countdown
+
             _startTimer(); // Start the global timer only when questions are loaded
           }
         });
@@ -332,8 +421,8 @@ class _QuestionscreenState extends State<Questionscreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title:
-            Text('${widget.level}-${widget.year}年${widget.month}月 日本語クイズテスト'),
+        title: Text(
+            '${widget.level}-${widget.year}年${widget.month}月 日本語クイズテスト (${widget.examType})'),
         backgroundColor: Colors.yellow,
       ),
       body: SafeArea(
@@ -414,13 +503,13 @@ class _QuestionscreenState extends State<Questionscreen> {
                         alignment: Alignment.center,
                         children: [
                           SizedBox(
-                            height: 60,
-                            width: 60,
+                            height: 45,
+                            width: 45,
                             child: CircularProgressIndicator(
                               value: _countdownSeconds /
                                   _totalQuizSeconds
-                                      .toDouble(), // Dynamic progress for 3 minutes
-                              strokeWidth: 6,
+                                      .toDouble(), // Dynamic progress for total quiz time
+                              strokeWidth: 4,
                               backgroundColor: Colors.white,
                               color: Colors.deepPurple,
                             ),
@@ -428,7 +517,7 @@ class _QuestionscreenState extends State<Questionscreen> {
                           Text(
                             "$minutes:$seconds", // Display countdown as MM:SS
                             style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
+                                fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -448,6 +537,7 @@ class _QuestionscreenState extends State<Questionscreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Row(
                                 children: [
@@ -458,29 +548,72 @@ class _QuestionscreenState extends State<Questionscreen> {
                                       style: TextStyle(color: Colors.orange)),
                                 ],
                               ),
+                              const SizedBox(
+                                  height: 10), // Spacing after hint icon/text
+                              (question.groupTitle != null &&
+                                      question.groupTitle!.isNotEmpty)
+                                  ? Padding(
+                                      padding: const EdgeInsets.only(
+                                          top: 10.0, bottom: 8.0), // Spacing
+                                      child: Text(
+                                        question
+                                            .groupTitle!, // Still safe because of the 'if' condition
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.black87,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    )
+                                  : Padding(
+                                      padding: const EdgeInsets.only(
+                                          top: 10.0, bottom: 8.0),
+                                      child: Text(
+                                        '使用可能なグループタイトルがありません。', // Fallback text
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey[600],
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ),
                               const SizedBox(height: 10),
-                              Center(
-                                child: Text(
-                                    "問題 ${displayQuestionNumber.toString().padLeft(2, '0')}",
-                                    style: const TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold)),
-                              ),
-                              const SizedBox(height: 20),
-                              Center(
-                                child: Text(
-                                  question.subQuestion ?? "質問テキストが利用できません。",
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8.0, vertical: 4.0),
+                                decoration: BoxDecoration(
+                                  color:
+                                      const Color.fromARGB(249, 252, 241, 180),
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                        " ${displayQuestionNumber.toString().padLeft(2, '0')})",
+                                        style: const TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        question.subQuestion ??
+                                            "質問テキストが利用できません。",
+                                        textAlign: TextAlign.left,
+                                        style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                              const SizedBox(height: 20),
                               if (_showHint)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 10.0),
                                   child: Text(
-                                    'ヒント: ${_getHintText() ?? '利用できるヒントがありません。'}',
+                                    ' ${_getHintText() ?? '利用できるヒントがありません。'}',
                                     style: const TextStyle(
                                         fontSize: 16, color: Colors.blue),
                                   ),
@@ -565,38 +698,82 @@ class _QuestionscreenState extends State<Questionscreen> {
                             );
                           }).toList(),
                           const SizedBox(height: 20),
-                          ElevatedButton(
-                            onPressed: () {
-                              // Save the selected answer for the current question
-                              _userAnswers[_currentQuestionIndex] =
-                                  _selectedAnswerIndex;
+                          // Row for previous and next/finish buttons
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              // Previous Button
+                              if (_currentQuestionIndex >
+                                  0) // Only show if not on the first question
+                                ElevatedButton(
+                                  onPressed: () {
+                                    // Save the selected answer for the current question
+                                    _userAnswers[_currentQuestionIndex] =
+                                        _selectedAnswerIndex;
+                                    _pageController.previousPage(
+                                      duration:
+                                          const Duration(milliseconds: 300),
+                                      curve: Curves.easeIn,
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors
+                                        .grey, // A different color for previous
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14, horizontal: 40),
+                                  ),
+                                  child: const Text(
+                                    "前へ", // "Previous" in Japanese
+                                    style: TextStyle(
+                                        fontSize: 18, color: Colors.white),
+                                  ),
+                                ),
+                              // Spacer to push buttons apart if needed, or adjust padding
+                              if (_currentQuestionIndex > 0)
+                                const SizedBox(
+                                    width: 20), // Space between buttons
 
-                              if (_currentQuestionIndex < totalQuestions - 1) {
-                                _pageController.nextPage(
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeIn,
-                                );
-                              } else {
-                                // All questions have been answered or "Finish" button pressed
-                                print(
-                                    "All questions answered! Calculating results and navigating.");
-                                _calculateResultsAndNavigate();
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.deepPurple,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
+                              // Next / Finish Button
+                              ElevatedButton(
+                                onPressed: () {
+                                  // Save the selected answer for the current question
+                                  _userAnswers[_currentQuestionIndex] =
+                                      _selectedAnswerIndex;
+
+                                  if (_currentQuestionIndex <
+                                      totalQuestions - 1) {
+                                    _pageController.nextPage(
+                                      duration:
+                                          const Duration(milliseconds: 300),
+                                      curve: Curves.easeIn,
+                                    );
+                                  } else {
+                                    // All questions have been answered or "Finish" button pressed
+                                    print(
+                                        "All questions answered! Calculating results and navigating.");
+                                    _calculateResultsAndNavigate();
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.deepPurple,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                      horizontal: 40), // Adjusted padding
+                                ),
+                                child: Text(
+                                    _currentQuestionIndex == totalQuestions - 1
+                                        ? "仕上げる"
+                                        : "次へ", // "Next" or "Finish" button text
+                                    style: const TextStyle(
+                                        fontSize: 18, color: Colors.white)),
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 14, horizontal: 130),
-                            ),
-                            child: Text(
-                                _currentQuestionIndex == totalQuestions - 1
-                                    ? "仕上げる"
-                                    : "次へ", // "Next" or "Finish" button text
-                                style: const TextStyle(
-                                    fontSize: 18, color: Colors.white)),
+                            ],
                           ),
                           const SizedBox(height: 30),
                         ],

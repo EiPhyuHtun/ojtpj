@@ -7,6 +7,7 @@ class Question {
   final String? answer4;
   final int? correctAnswer; // Make correctAnswer nullable
   final int? quizId; // Make quizId nullable
+  final String? groupTitle;
 
   Question({
     this.id,
@@ -17,6 +18,7 @@ class Question {
     this.answer4,
     this.correctAnswer,
     this.quizId,
+    this.groupTitle,
   });
 
   factory Question.fromMap(Map<String, dynamic> map) {
@@ -29,6 +31,7 @@ class Question {
       answer4: map['answer4'] as String?,
       correctAnswer: map['correct_answer'] as int?, // Use 'as int?'
       quizId: map['quiz_id'] as int?,
+      groupTitle: map['group_title'] as String?,
     );
   }
 

@@ -54,6 +54,8 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
   }
 
   void _onTabTapped(int index) async {
+    // Check if the history tab (index 2) is being tapped
+    // and if the history data hasn't been loaded yet.
     if (index == 2 && !_historyLoaded) {
       await _loadHistory();
     }
@@ -72,17 +74,17 @@ class _ExamDetailScreenState extends State<ExamDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> _pages = [
-      ExamDetailTab(
-          year: widget.year, month: widget.month, level: widget.level),
-      const ProfileScreen(),
-      HistoryScreen(attemptList: _userAttempts),
-    ];
     return Scaffold(
         body: TabBarView(
           controller: _tabController,
           physics: const NeverScrollableScrollPhysics(),
-          children: _pages,
+          children: [
+            ExamDetailTab(
+                year: widget.year, month: widget.month, level: widget.level),
+            const ProfileScreen(),
+            // Create HistoryScreen here with the current _userAttempts
+            HistoryScreen(attemptList: _userAttempts),
+          ],
         ),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _currentIndex,

@@ -110,7 +110,7 @@ class DatabaseHelper {
     await db.insert(
       'users',
       {
-        'userName': 'Guest',
+        'userName': '名前未設定',
         'userImage': defaultUserImageBytes, // Use the loaded bytes
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
@@ -168,7 +168,7 @@ class DatabaseHelper {
           await db.insert(
             'users',
             {
-              'userName': 'Guest',
+              'userName': '名前未設定',
               'userImage': defaultUserImageBytes, // Use the loaded bytes
             },
             conflictAlgorithm: ConflictAlgorithm.replace,
@@ -232,13 +232,16 @@ class DatabaseHelper {
           q.answer3,
           q.answer4,
           q.correct_answer,
-          q.quiz_id
+          q.quiz_id,
+          qg.group_title AS group_title
       FROM
           questions AS q
       JOIN
           quiz AS qz ON q.quiz_id = qz.id
       JOIN
           year AS y ON qz.year_id = y.id
+      LEFT JOIN
+          question_groups AS qg ON q.question_groups_id = qg.id
       WHERE
           y.year = ? AND y.month = ? AND qz.type = ? AND qz.level = ?
     ''', [year, month, examType, level]); // Order of parameters matters!
