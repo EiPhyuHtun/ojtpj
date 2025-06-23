@@ -8,6 +8,8 @@ import 'package:sqflite/sqflite.dart';
 
 // Import your data model if you created one
 import 'package:jlpt_quiz/model/question.dart';
+import 'package:jlpt_quiz/model/passage.dart';
+import 'package:jlpt_quiz/model/reading_item.dart';
 
 class DatabaseHelper {
   static Database? _database;
@@ -217,6 +219,65 @@ class DatabaseHelper {
     return await db.query('users');
   }
 
+  Future<List<Map<String, dynamic>>> getPassageWithQuestions(int quizId) async {
+    final db = await database;
+
+    final result = await db.rawQuery('''
+    SELECT 
+      p.id AS passage_id,
+      p.paragraph,
+      q.id AS question_id,
+      q.sub_question,
+      q.answer1,
+      q.answer2,
+      q.answer3,
+      q.answer4,
+      q.correct_answer
+    FROM reading r
+    LEFT JOIN passages p ON r.passage_id = p.id
+    LEFT JOIN questions q ON r.question_id = q.id
+    WHERE r.quiz_id = ?
+    ORDER BY r.display_order ASC
+  ''', [quizId]);
+
+    // Group by passage_id
+    Map<int, Map<String, dynamic>> grouped = {};
+
+    for (var row in result) {
+      final pid = row['passage_id'];
+      if (pid == null) continue;
+
+      final int passageId =
+          pid is int ? pid : int.tryParse(pid.toString()) ?? -1;
+      if (passageId == -1) continue;
+
+      if (!grouped.containsKey(passageId)) {
+        grouped[passageId] = {
+          'paragraph': row['paragraph'],
+          'questions': [],
+        };
+      }
+
+      grouped[passageId]!['questions'].add({
+        'id': row['question_id'],
+        'sub_question': row['sub_question'],
+        'answer1': row['answer1'],
+        'answer2': row['answer2'],
+        'answer3': row['answer3'],
+        'answer4': row['answer4'],
+        'correct_answer': row['correct_answer'],
+      });
+    }
+
+    return grouped.entries
+        .map((e) => {
+              'passage_id': e.key,
+              'paragraph': e.value['paragraph'],
+              'questions': e.value['questions'],
+            })
+        .toList();
+  }
+
   // New method to fetch questions based on year, month, level, and exam type
   Future<List<Question>> getQuestionsByQuizParameters(
       String year, String month, String level, String examType) async {
@@ -225,25 +286,25 @@ class DatabaseHelper {
     // Use a JOIN query to filter questions based on quiz and year attributes
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT
-          q.id,
-          q.sub_question,
-          q.answer1,
-          q.answer2,
-          q.answer3,
-          q.answer4,
-          q.correct_answer,
-          q.quiz_id,
-          qg.group_title AS group_title
+        q.id,
+        q.sub_question,
+        q.answer1,
+        q.answer2,
+        q.answer3,
+        q.answer4,
+        q.correct_answer,
+        q.quiz_id,
+        qg.group_title AS group_title,
+        p.paragraph AS passage
       FROM
-          questions AS q
-      JOIN
-          quiz AS qz ON q.quiz_id = qz.id
-      JOIN
-          year AS y ON qz.year_id = y.id
-      LEFT JOIN
-          question_groups AS qg ON q.question_groups_id = qg.id
+        questions AS q
+      JOIN quiz AS qz ON q.quiz_id = qz.id
+      JOIN year AS y ON qz.year_id = y.id
+      LEFT JOIN question_groups AS qg ON q.question_groups_id = qg.id
+      LEFT JOIN reading AS r ON r.question_id = q.id
+      LEFT JOIN passages AS p ON r.passage_id = p.id
       WHERE
-          y.year = ? AND y.month = ? AND qz.type = ? AND qz.level = ?
+        y.year = ? AND y.month = ? AND qz.type = ? AND qz.level = ?
     ''', [year, month, examType, level]); // Order of parameters matters!
 
     print(

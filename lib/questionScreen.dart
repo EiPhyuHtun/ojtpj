@@ -3,7 +3,8 @@ import 'package:jlpt_quiz/database/database_helper.dart';
 import 'package:jlpt_quiz/model/question.dart';
 import 'dart:async'; // Import for Timer
 import 'package:jlpt_quiz/history.dart';
-import 'package:jlpt_quiz/model/user_attempt.dart'; // Import HistoryScreen
+import 'package:jlpt_quiz/model/user_attempt.dart';
+import 'package:jlpt_quiz/passageScreen.dart'; // Import HistoryScreen
 
 class Questionscreen extends StatefulWidget {
   final String year;
@@ -30,27 +31,21 @@ class _QuestionscreenState extends State<Questionscreen> {
   int _currentQuestionIndex = 0; // Track current question index in the list
   bool _isLoadingQuestions = true; // State for loading questions
 
-  // Timer related variables
   Timer? _timer;
   int _countdownSeconds =
       0; // Will be set dynamically based on level and examType
   int _totalQuizSeconds =
       0; // Will store initial total for progress calculation
 
-  // Quiz result tracking
   int _correctAnswersCount = 0;
   int _incorrectAnswersCount = 0;
   int _noAnswerCount = 0;
 
-  // Map to store user's selected answer for each question (key: questionIndex, value: selectedAnswerIndex or null)
   final Map<int, int?> _userAnswers = {};
 
-  // Dummy userId for now. In a real app, this would come from user login/session.
   final int _currentLoggedInUserId =
       1; // **IMPORTANT: Replace with actual user ID**
 
-  // This will hold the quiz_id of the current set of questions.
-  // Assuming all questions loaded for a specific set of parameters belong to one quiz.
   int? _currentQuizId;
   bool _showHint = false;
 
@@ -61,9 +56,7 @@ class _QuestionscreenState extends State<Questionscreen> {
     _loadQuestions();
   }
 
-  // Helper function to get the total quiz duration based on the JLPT level and exam type
   int _getExamTypeDurationInSeconds(String level, String examType) {
-    // All times are in minutes, converted to seconds
     switch (level.toUpperCase()) {
       case 'N1':
         switch (examType) {
@@ -96,9 +89,6 @@ class _QuestionscreenState extends State<Questionscreen> {
             return 155 * 60; // Fallback for N2
         }
       case 'N3':
-        // For N3, N4, N5, if specific exam type timings aren't provided,
-        // we can set a reasonable default, or use the total time for that level.
-        // I'm using the total time for these individual sections as a default.
         switch (examType) {
           case 'Kanji/Vocab':
           case 'Reading':
@@ -141,39 +131,30 @@ class _QuestionscreenState extends State<Questionscreen> {
     }
   }
 
-  // Starts the global quiz timer
   void _startTimer() {
-    _timer?.cancel(); // Cancel any existing timer before starting a new one
-    // _countdownSeconds is already set correctly in _loadQuestions
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_countdownSeconds > 0) {
         if (mounted) {
-          // Ensure widget is still mounted before calling setState
           setState(() {
             _countdownSeconds--;
           });
         }
       } else {
-        // Timer has run out
-        _timer?.cancel(); // Stop the timer
+        _timer?.cancel();
         print("Quiz time's up! Calculating results and navigating.");
-        _calculateResultsAndNavigate(); // Call new method
+        _calculateResultsAndNavigate();
       }
     });
   }
 
   void _calculateResultsAndNavigate() async {
     _timer?.cancel();
-
-    // Ensure the answer for the current (last) question is saved before calculating results
     _userAnswers[_currentQuestionIndex] = _selectedAnswerIndex;
 
     _calculateResults();
-
     await _saveUserAttempt();
-
-    // Assuming you have currentUserId stored somewhere
-    int currentUserId = 1; // Replace with your actual user ID fetch logic
+    int currentUserId = 1;
 
     List<UserAttempt> attempts =
         await DatabaseHelper.instance.getUserAttemptHistory(currentUserId);
@@ -194,19 +175,16 @@ class _QuestionscreenState extends State<Questionscreen> {
     );
   }
 
-  // Calculates the correct, incorrect, and unanswered counts
   void _calculateResults() {
     _correctAnswersCount = 0;
     _incorrectAnswersCount = 0;
     _noAnswerCount = 0;
-    // Get the total number of questions. This is crucial for percentage calculation.
-    final int totalQuestions =
-        _questions.length; // <--- This is your "total answer" (total questions)
+
+    final int totalQuestions = _questions.length;
 
     for (int i = 0; i < _questions.length; i++) {
       final Question question = _questions[i];
-      final int? userAnswer =
-          _userAnswers[i]; // Get user's answer for this question
+      final int? userAnswer = _userAnswers[i];
 
       if (userAnswer == null) {
         _noAnswerCount++;
@@ -266,7 +244,6 @@ class _QuestionscreenState extends State<Questionscreen> {
               _currentQuizId = _questions.first.quizId;
             }
 
-            // Set the total quiz duration based on the level AND examType
             _totalQuizSeconds =
                 _getExamTypeDurationInSeconds(widget.level, widget.examType);
             _countdownSeconds = _totalQuizSeconds; // Initialize countdown
@@ -291,7 +268,6 @@ class _QuestionscreenState extends State<Questionscreen> {
     }
   }
 
-  // Saves the user's attempt results to the database
   Future<void> _saveUserAttempt() async {
     if (_currentQuizId == null) {
       print("Error: Cannot save user attempt, quiz ID is null.");
@@ -319,7 +295,6 @@ class _QuestionscreenState extends State<Questionscreen> {
     }
   }
 
-  // Helper to get the current question based on index
   Question? get _currentQuestion =>
       _questions.isNotEmpty && _currentQuestionIndex < _questions.length
           ? _questions[_currentQuestionIndex]
@@ -419,6 +394,8 @@ class _QuestionscreenState extends State<Questionscreen> {
     String minutes = (_countdownSeconds ~/ 60).toString().padLeft(2, '0');
     String seconds = (_countdownSeconds % 60).toString().padLeft(2, '0');
 
+    final ScrollController _cardScrollController = ScrollController();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -432,10 +409,8 @@ class _QuestionscreenState extends State<Questionscreen> {
           physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (newPageIndex) {
             setState(() {
-              // Save the selected answer for the current question before moving
               _userAnswers[_currentQuestionIndex] = _selectedAnswerIndex;
               _currentQuestionIndex = newPageIndex;
-              // Load the previously selected answer for the new question
               _selectedAnswerIndex = _userAnswers[newPageIndex];
               _showHint = false;
             });
@@ -454,52 +429,48 @@ class _QuestionscreenState extends State<Questionscreen> {
               question.answer4 ?? 'Answer 4 missing',
             ];
 
-            return Column(
-              children: [
-                Container(
-                  color: Colors.yellow,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0, vertical: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            return Container(
+              color: Colors.yellow,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header: progress and countdown
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.person_outline),
-                                const SizedBox(width: 5),
-                                Text(
-                                    "$displayQuestionNumber of $totalQuestions"),
-                              ],
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.deepOrange,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              child: Text(
-                                  "$displayQuestionNumber of $totalQuestions",
-                                  style: const TextStyle(color: Colors.white)),
-                            ),
+                            const Icon(Icons.person_outline),
+                            const SizedBox(width: 5),
+                            Text("$displayQuestionNumber of $totalQuestions"),
                           ],
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: LinearProgressIndicator(
-                          value: (displayQuestionNumber /
-                              totalQuestions), // Dynamic progress
-                          minHeight: 6,
-                          backgroundColor: Colors.grey[300],
-                          color: Colors.deepPurple,
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.deepOrange,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          child: Text(
+                            "$displayQuestionNumber of $totalQuestions",
+                            style: const TextStyle(color: Colors.white),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Stack(
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: (displayQuestionNumber / totalQuestions),
+                      minHeight: 6,
+                      backgroundColor: Colors.grey[300],
+                      color: Colors.deepPurple,
+                    ),
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Stack(
                         alignment: Alignment.center,
                         children: [
                           SizedBox(
@@ -507,281 +478,230 @@ class _QuestionscreenState extends State<Questionscreen> {
                             width: 45,
                             child: CircularProgressIndicator(
                               value: _countdownSeconds /
-                                  _totalQuizSeconds
-                                      .toDouble(), // Dynamic progress for total quiz time
+                                  _totalQuizSeconds.toDouble(),
                               strokeWidth: 4,
                               backgroundColor: Colors.white,
                               color: Colors.deepPurple,
                             ),
                           ),
                           Text(
-                            "$minutes:$seconds", // Display countdown as MM:SS
+                            "$minutes:$seconds",
                             style: const TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _showHint = !_showHint;
-                          });
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(Icons.lightbulb_outline,
-                                      color: Colors.orange),
-                                  SizedBox(width: 5),
-                                  Text("ヒント",
-                                      style: TextStyle(color: Colors.orange)),
-                                ],
-                              ),
-                              const SizedBox(
-                                  height: 10), // Spacing after hint icon/text
-                              (question.groupTitle != null &&
-                                      question.groupTitle!.isNotEmpty)
-                                  ? Padding(
-                                      padding: const EdgeInsets.only(
-                                          top: 10.0, bottom: 8.0), // Spacing
-                                      child: Text(
-                                        question
-                                            .groupTitle!, // Still safe because of the 'if' condition
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.black87,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    )
-                                  : Padding(
-                                      padding: const EdgeInsets.only(
-                                          top: 10.0, bottom: 8.0),
-                                      child: Text(
-                                        '使用可能なグループタイトルがありません。', // Fallback text
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: Colors.grey[600],
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      ),
-                                    ),
-                              const SizedBox(height: 10),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8.0, vertical: 4.0),
-                                decoration: BoxDecoration(
-                                  color:
-                                      const Color.fromARGB(249, 252, 241, 180),
-                                  borderRadius: BorderRadius.circular(10.0),
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                        " ${displayQuestionNumber.toString().padLeft(2, '0')})",
-                                        style: const TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.bold)),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        question.subQuestion ??
-                                            "質問テキストが利用できません。",
-                                        textAlign: TextAlign.left,
-                                        style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              if (_showHint)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 10.0),
-                                  child: Text(
-                                    ' ${_getHintText() ?? '利用できるヒントがありません。'}',
-                                    style: const TextStyle(
-                                        fontSize: 16, color: Colors.blue),
-                                  ),
-                                ),
-                            ],
-                          ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Hint and Passage Section
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _showHint = !_showHint;
+                        });
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Container(
-                    color: const Color(0xFFFDF4F6),
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 10),
-                          ...answers.asMap().entries.map((entry) {
-                            final int index = entry.key;
-                            final String text = entry.value;
-                            bool isSelected =
-                                (_selectedAnswerIndex == index + 1);
-
-                            return Card(
-                              elevation: isSelected ? 4 : 1,
-                              color: const Color.fromARGB(235, 245, 239, 239),
-                              shadowColor:
-                                  const Color.fromARGB(255, 250, 245, 245),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(
-                                  color: isSelected
-                                      ? Colors.deepPurple
-                                      : Colors.grey.shade300,
-                                  width: 1.5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.lightbulb_outline,
+                                    color: Colors.orange),
+                                SizedBox(width: 5),
+                                Text("ヒント",
+                                    style: TextStyle(color: Colors.orange)),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            if (question.groupTitle?.isNotEmpty ?? false)
+                              Text(
+                                question.groupTitle!,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              margin: const EdgeInsets.symmetric(vertical: 6),
-                              child: ListTile(
-                                tileColor:
-                                    const Color.fromARGB(239, 247, 237, 237),
-                                title: Text(
-                                  text,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                                trailing: Checkbox(
-                                  value: isSelected,
-                                  onChanged: (bool? value) {
-                                    setState(() {
-                                      if (value == true) {
-                                        _selectedAnswerIndex = index + 1;
-                                      } else if (_selectedAnswerIndex ==
-                                          index + 1) {
-                                        _selectedAnswerIndex = null;
-                                      }
-                                      print(
-                                          'Selected answer: $_selectedAnswerIndex');
-                                    });
-                                  },
-                                  activeColor: Colors.deepPurple,
-                                ),
-                                onTap: () {
-                                  setState(() {
-                                    if (_selectedAnswerIndex == index + 1) {
-                                      _selectedAnswerIndex = null; // Deselect
-                                    } else {
-                                      _selectedAnswerIndex =
-                                          index + 1; // Select this one
-                                    }
-                                    print(
-                                        'Selected answer: $_selectedAnswerIndex');
-                                  });
-                                },
-                              ),
-                            );
-                          }).toList(),
-                          const SizedBox(height: 20),
-                          // Row for previous and next/finish buttons
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              // Previous Button
-                              if (_currentQuestionIndex >
-                                  0) // Only show if not on the first question
-                                ElevatedButton(
-                                  onPressed: () {
-                                    // Save the selected answer for the current question
-                                    _userAnswers[_currentQuestionIndex] =
-                                        _selectedAnswerIndex;
-                                    _pageController.previousPage(
-                                      duration:
-                                          const Duration(milliseconds: 300),
-                                      curve: Curves.easeIn,
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors
-                                        .grey, // A different color for previous
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(30),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 14, horizontal: 40),
-                                  ),
-                                  child: const Text(
-                                    "前へ", // "Previous" in Japanese
-                                    style: TextStyle(
-                                        fontSize: 18, color: Colors.white),
-                                  ),
-                                ),
-                              // Spacer to push buttons apart if needed, or adjust padding
-                              if (_currentQuestionIndex > 0)
-                                const SizedBox(
-                                    width: 20), // Space between buttons
-
-                              // Next / Finish Button
-                              ElevatedButton(
-                                onPressed: () {
-                                  // Save the selected answer for the current question
-                                  _userAnswers[_currentQuestionIndex] =
-                                      _selectedAnswerIndex;
-
-                                  if (_currentQuestionIndex <
-                                      totalQuestions - 1) {
-                                    _pageController.nextPage(
-                                      duration:
-                                          const Duration(milliseconds: 300),
-                                      curve: Curves.easeIn,
-                                    );
-                                  } else {
-                                    // All questions have been answered or "Finish" button pressed
-                                    print(
-                                        "All questions answered! Calculating results and navigating.");
-                                    _calculateResultsAndNavigate();
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.deepPurple,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 14,
-                                      horizontal: 40), // Adjusted padding
+                            if (question.passage?.isNotEmpty ?? false)
+                              Container(
+                                margin: const EdgeInsets.only(top: 10),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8F5E9),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
-                                    _currentQuestionIndex == totalQuestions - 1
-                                        ? "仕上げる"
-                                        : "次へ", // "Next" or "Finish" button text
-                                    style: const TextStyle(
-                                        fontSize: 18, color: Colors.white)),
+                                  question.passage!,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 30),
-                        ],
+                            const SizedBox(height: 10),
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(top: 12),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color.fromARGB(
+                                    249, 252, 241, 180), // pale yellow
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    " ${displayQuestionNumber.toString().padLeft(2, '0')})",
+                                    style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      question.subQuestion ?? "質問テキストが利用できません。",
+                                      style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (_showHint)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 10.0),
+                                child: Text(
+                                  ' ${_getHintText() ?? '利用できるヒントがありません。'}',
+                                  style: const TextStyle(
+                                      fontSize: 16, color: Colors.blue),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+
+                    // Answer Options
+                    ...answers.asMap().entries.map((entry) {
+                      final int index = entry.key;
+                      final String text = entry.value;
+                      bool isSelected = (_selectedAnswerIndex == index + 1);
+
+                      return Card(
+                        elevation: isSelected ? 4 : 1,
+                        color: const Color.fromARGB(235, 245, 239, 239),
+                        shadowColor: const Color.fromARGB(255, 250, 245, 245),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: isSelected
+                                ? Colors.deepPurple
+                                : Colors.grey.shade300,
+                            width: 1.5,
+                          ),
+                        ),
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        child: ListTile(
+                          title: Text(
+                            text,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                          trailing: Checkbox(
+                            value: isSelected,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                _selectedAnswerIndex =
+                                    value == true ? index + 1 : null;
+                              });
+                            },
+                            activeColor: Colors.deepPurple,
+                          ),
+                          onTap: () {
+                            setState(() {
+                              _selectedAnswerIndex =
+                                  (_selectedAnswerIndex == index + 1)
+                                      ? null
+                                      : index + 1;
+                            });
+                          },
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: 20),
+
+                    // Navigation Buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        if (_currentQuestionIndex > 0)
+                          ElevatedButton(
+                            onPressed: () {
+                              _userAnswers[_currentQuestionIndex] =
+                                  _selectedAnswerIndex;
+                              _pageController.previousPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeIn,
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 14, horizontal: 40),
+                            ),
+                            child: const Text("前へ",
+                                style: TextStyle(
+                                    fontSize: 18, color: Colors.white)),
+                          ),
+                        ElevatedButton(
+                          onPressed: () {
+                            _userAnswers[_currentQuestionIndex] =
+                                _selectedAnswerIndex;
+                            if (_currentQuestionIndex < totalQuestions - 1) {
+                              _pageController.nextPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeIn,
+                              );
+                            } else {
+                              _calculateResultsAndNavigate();
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 14, horizontal: 40),
+                          ),
+                          child: Text(
+                              _currentQuestionIndex == totalQuestions - 1
+                                  ? "仕上げる"
+                                  : "次へ",
+                              style: const TextStyle(
+                                  fontSize: 18, color: Colors.white)),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 30),
+                  ],
                 ),
-              ],
+              ),
             );
           },
         ),

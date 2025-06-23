@@ -8,18 +8,19 @@ class Question {
   final int? correctAnswer; // Make correctAnswer nullable
   final int? quizId; // Make quizId nullable
   final String? groupTitle;
+  final String? passage;
 
-  Question({
-    this.id,
-    this.subQuestion,
-    this.answer1,
-    this.answer2,
-    this.answer3,
-    this.answer4,
-    this.correctAnswer,
-    this.quizId,
-    this.groupTitle,
-  });
+  Question(
+      {this.id,
+      this.subQuestion,
+      this.answer1,
+      this.answer2,
+      this.answer3,
+      this.answer4,
+      this.correctAnswer,
+      this.quizId,
+      this.groupTitle,
+      this.passage});
 
   factory Question.fromMap(Map<String, dynamic> map) {
     return Question(
@@ -32,6 +33,7 @@ class Question {
       correctAnswer: map['correct_answer'] as int?, // Use 'as int?'
       quizId: map['quiz_id'] as int?,
       groupTitle: map['group_title'] as String?,
+      passage: map['passage'],
     );
   }
 
