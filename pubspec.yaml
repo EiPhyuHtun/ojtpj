@@ -35,6 +35,8 @@ dependencies:
   sqflite: ^2.3.2
   path: ^1.8.3
   intl: ^0.18.1
+  just_audio: ^0.9.35
+  path_provider: ^2.1.2
   
 # Web support
 dependency_overrides:
@@ -76,6 +78,7 @@ flutter:
     - assets/images/profile.png
     - assets/images/trophy.png
     - assets/images/crown.jpg
+    - assets/audio/CD.mp3
     
     # database accept
     - assets/database/jlptquiz.db
