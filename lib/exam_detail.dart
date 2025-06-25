@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jlpt_quiz/database/database_helper.dart';
+import 'package:jlpt_quiz/audioScreen.dart';
 import 'package:jlpt_quiz/model/user.dart';
 import 'package:jlpt_quiz/model/user_attempt.dart';
 import 'package:jlpt_quiz/profileScreen.dart';
@@ -255,7 +256,7 @@ class _ExamDetailTabState extends State<ExamDetailTab> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => Questionscreen(
+                          builder: (context) => AudioQuizScreen(
                             year: widget.year,
                             month: widget.month,
                             level: widget.level,
