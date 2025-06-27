@@ -256,7 +256,7 @@ class _ExamDetailTabState extends State<ExamDetailTab> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => AudioQuizScreen(
+                          builder: (context) => Questionscreen(
                             year: widget.year,
                             month: widget.month,
                             level: widget.level,

@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:jlpt_quiz/database/database_helper.dart';
 import 'package:jlpt_quiz/model/question.dart';
 import 'dart:async'; // Import for Timer
 import 'package:jlpt_quiz/history.dart';
 import 'package:jlpt_quiz/model/user_attempt.dart';
-import 'package:jlpt_quiz/passageScreen.dart'; // Import HistoryScreen
+import 'package:jlpt_quiz/passageScreen.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart'; // Import HistoryScreen
 
 class Questionscreen extends StatefulWidget {
   final String year;
@@ -49,11 +54,19 @@ class _QuestionscreenState extends State<Questionscreen> {
   int? _currentQuizId;
   bool _showHint = false;
 
+  //audio
+  final AudioPlayer _player = AudioPlayer();
+  List<DurationRange> _audioParts = [];
+  bool _isPlaying = false;
+
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _loadQuestions();
+    if(widget.examType=="Listening"){
+      _loadAudio();
+      }  
   }
 
   int _getExamTypeDurationInSeconds(String level, String examType) {
@@ -205,6 +218,7 @@ class _QuestionscreenState extends State<Questionscreen> {
 
   // Loads questions from the database based on quiz parameters
   void _loadQuestions() async {
+    print("Load Question Function...");
     setState(() {
       _isLoadingQuestions = true;
       _questions = []; // Clear previous questions
@@ -225,10 +239,14 @@ class _QuestionscreenState extends State<Questionscreen> {
         widget.level,
         widget.examType,
       );
-
+      print("Insert Data...");
+      print(fetchedQuestions);
       if (mounted) {
+        print("Mounted....");
+        print(mounted);
         setState(() {
           _questions = fetchedQuestions;
+
           _isLoadingQuestions = false;
           if (_questions.isEmpty) {
             print("No questions found for the selected criteria.");
@@ -338,6 +356,43 @@ class _QuestionscreenState extends State<Questionscreen> {
     }
     return null;
   }
+
+  Future<void> _loadAudio() async {
+  final byteData = await rootBundle.load("assets/audio/CD.mp3");
+  final tempDir = await getTemporaryDirectory();
+  final file = File('${tempDir.path}/CD.mp3');
+  await file.writeAsBytes(byteData.buffer.asUint8List());
+
+  await _player.setFilePath(file.path);
+  final totalDuration = await _player.durationFuture ?? Duration(seconds: 60);
+  final partDuration = totalDuration.inSeconds ~/ _questions.length;
+
+  _audioParts = List.generate(_questions.length, (i) {
+    final start = Duration(seconds: i * partDuration);
+    final end = Duration(seconds: (i + 1) * partDuration);
+    return DurationRange(start: start, end: end);
+  });
+}
+void _togglePlayPause() async {
+  if (_audioParts.isEmpty) return;
+  final range = _audioParts[_currentQuestionIndex];
+
+  if (_isPlaying) {
+    await _player.pause();
+    setState(() => _isPlaying = false);
+  } else {
+    await _player.seek(range.start);
+    await _player.play();
+    setState(() => _isPlaying = true);
+
+    Future.delayed(range.end - range.start, () {
+      if (_player.playing) {
+        _player.pause();
+        setState(() => _isPlaying = false);
+      }
+    });
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -542,6 +597,45 @@ class _QuestionscreenState extends State<Questionscreen> {
                                   style: const TextStyle(fontSize: 14),
                                 ),
                               ),
+                            if ((question.passage?.isEmpty ?? true) && question.quizId == 18)
+                              Center(
+                                child: GestureDetector(
+                                  onTap: _togglePlayPause,
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEDE7F6),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.deepPurple,
+                                          ),
+                                          child: Icon(
+                                            _isPlaying ? Icons.pause : Icons.play_arrow,
+                                            size: 36,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        const Text(
+                                          'Tap to Play Audio',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.deepPurple,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             const SizedBox(height: 10),
                             Container(
                               width: double.infinity,
@@ -708,4 +802,11 @@ class _QuestionscreenState extends State<Questionscreen> {
       ),
     );
   }
+}
+
+class DurationRange {
+  final Duration start;
+  final Duration end;
+
+  DurationRange({required this.start, required this.end});
 }
