@@ -209,11 +209,6 @@ class _QuestionscreenState extends State<Questionscreen> {
       }
     }
 
-    print("\n--- Quiz Results ---");
-    print("Correct Answers: $_correctAnswersCount");
-    print("Incorrect Answers: $_incorrectAnswersCount");
-    print("Unanswered Questions: $_noAnswerCount");
-    print("---------------------\n");
   }
 
   // Loads questions from the database based on quiz parameters
@@ -358,25 +353,60 @@ class _QuestionscreenState extends State<Questionscreen> {
   }
 
   Future<void> _loadAudio() async {
+    print("Load Audio File ....");
   final byteData = await rootBundle.load("assets/audio/CD.mp3");
   final tempDir = await getTemporaryDirectory();
   final file = File('${tempDir.path}/CD.mp3');
   await file.writeAsBytes(byteData.buffer.asUint8List());
 
   await _player.setFilePath(file.path);
-  final totalDuration = await _player.durationFuture ?? Duration(seconds: 60);
-  final partDuration = totalDuration.inSeconds ~/ _questions.length;
+  final duration=await DatabaseHelper.instance.getListeningData();
+  print(duration.runtimeType);
+  _audioParts = duration.map<DurationRange>((row) {
+    final Duration startMs = row.start;
+    final Duration endMs   = row.end;
 
-  _audioParts = List.generate(_questions.length, (i) {
-    final start = Duration(seconds: i * partDuration);
-    final end = Duration(seconds: (i + 1) * partDuration);
-    return DurationRange(start: start, end: end);
+    return DurationRange(
+      start: startMs,
+      end: endMs,
+    );
+  }).toList();
+  setState(() {
+    _player.play();
+  });
+
+}
+
+Timer? _autoPause; // Keep a reference so we can cancel it
+
+Future<void> _playClip(int index) async {
+  if (index < 0 || index >= _audioParts.length) return;
+
+  // Stop whatever was playing
+  await _player.pause();
+  _autoPause?.cancel();
+
+  final range = _audioParts[index];
+
+  // Seek & play the new clip
+  await _player.seek(range.start);
+  await _player.play();
+  setState(() {
+    _currentQuestionIndex = index;
+    _isPlaying = true;
+  });
+
+  // Schedule an auto‑pause at the end of the clip
+  _autoPause = Timer(range.end - range.start, () async {
+    if (_player.playing) {
+      await _player.pause();
+      setState(() => _isPlaying = false);
+    }
   });
 }
 void _togglePlayPause() async {
   if (_audioParts.isEmpty) return;
   final range = _audioParts[_currentQuestionIndex];
-
   if (_isPlaying) {
     await _player.pause();
     setState(() => _isPlaying = false);
@@ -393,6 +423,19 @@ void _togglePlayPause() async {
     });
   }
 }
+
+void _onNext() {
+  if (_currentQuestionIndex < _audioParts.length - 1) {
+    _playClip(_currentQuestionIndex + 1);
+  }
+}
+
+void _onPrevious() {
+  if (_currentQuestionIndex > 0) {
+    _playClip(_currentQuestionIndex - 1);
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -742,11 +785,15 @@ void _togglePlayPause() async {
                         if (_currentQuestionIndex > 0)
                           ElevatedButton(
                             onPressed: () {
+                               if(widget.examType=="Listening"){
+                                _onPrevious();
+                                } 
                               _userAnswers[_currentQuestionIndex] =
                                   _selectedAnswerIndex;
                               _pageController.previousPage(
                                 duration: const Duration(milliseconds: 300),
                                 curve: Curves.easeIn,
+                                
                               );
                             },
                             style: ElevatedButton.styleFrom(
@@ -763,6 +810,9 @@ void _togglePlayPause() async {
                           ),
                         ElevatedButton(
                           onPressed: () {
+                            if(widget.examType=="Listening"){
+                              _onNext();
+                            }
                             _userAnswers[_currentQuestionIndex] =
                                 _selectedAnswerIndex;
                             if (_currentQuestionIndex < totalQuestions - 1) {

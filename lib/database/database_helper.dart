@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:jlpt_quiz/model/listening.dart';
 import 'package:jlpt_quiz/model/user.dart';
 import 'package:jlpt_quiz/model/user_attempt.dart';
 import 'package:path/path.dart';
@@ -10,6 +11,8 @@ import 'package:sqflite/sqflite.dart';
 import 'package:jlpt_quiz/model/question.dart';
 import 'package:jlpt_quiz/model/passage.dart';
 import 'package:jlpt_quiz/model/reading_item.dart';
+
+import '../questionScreen.dart';
 
 class DatabaseHelper {
   static Database? _database;
@@ -31,8 +34,6 @@ class DatabaseHelper {
     // Get the default databases path for your application.
     String databasesPath = await getDatabasesPath();
     String path = join(databasesPath, 'jlptquiz.db');
-    print("#####");
-    print(databasesPath); // Your database file name
 
     // Check if the database file already exists.
     bool databaseExists = await File(path).exists(); // Use File(path).exists()
@@ -49,10 +50,6 @@ class DatabaseHelper {
             await rootBundle.load(join("assets", "database", "jlptquiz.db"));
         List<int> bytes =
             data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-        print("##rs");
-        print(data);
-        print(bytes);
-
         // Write the bytes to the new database file.
         await File(path).writeAsBytes(bytes, flush: true);
         print("Database copied successfully from assets to: $path");
@@ -307,10 +304,6 @@ class DatabaseHelper {
         y.year = ? AND y.month = ? AND qz.type = ? AND qz.level = ?
     ''', [year, month, examType, level]); // Order of parameters matters!
 
-    print(
-        "Fetched ${maps.length} questions for Year: $year, Month: $month, Type: $examType, Level: $level");
-    print("Query results: $maps");
-
     // Convert the List<Map<String, dynamic>> into a List<Question>.
     return List.generate(maps.length, (i) {
       return Question.fromMap(maps[i]);
@@ -336,6 +329,21 @@ class DatabaseHelper {
       return null;
     }
   }
+
+ Future<List<DurationRange>> getListeningData() async {
+  // Example for sqflite
+  final db = await database;
+  final result = await db.query('Listening');  // SELECT * FROM Listening
+  print("Listening Database $result");
+  return result.map((row) {
+    final listening = Listening(
+      startTime: row['start_time_ms'] as String,
+      endTime:   row['end_time_ms']   as String,
+    );
+    return listening.toRange();
+  }).toList();
+}
+ 
 
   // Method to insert a user attempt
   Future<int> insertUserAttempt(int userId, int quizId, int correctScore,
@@ -412,4 +420,6 @@ class DatabaseHelper {
     await db.close();
     _database = null; // Clear the instance
   }
+
+
 }
