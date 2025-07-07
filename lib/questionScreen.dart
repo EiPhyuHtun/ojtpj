@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jlpt_quiz/database/database_helper.dart';
+import 'package:jlpt_quiz/model/audio_file_info.dart';
 import 'package:jlpt_quiz/model/question.dart';
 import 'dart:async'; // Import for Timer
 import 'package:jlpt_quiz/history.dart';
@@ -48,8 +49,7 @@ class _QuestionscreenState extends State<Questionscreen> {
 
   final Map<int, int?> _userAnswers = {};
 
-  final int _currentLoggedInUserId =
-      1; // **IMPORTANT: Replace with actual user ID**
+  final int _currentLoggedInUserId = 1; // **IMPORTANT: Replace with actual user ID**
 
   int? _currentQuizId;
   bool _showHint = false;
@@ -58,6 +58,24 @@ class _QuestionscreenState extends State<Questionscreen> {
   final AudioPlayer _player = AudioPlayer();
   List<DurationRange> _audioParts = [];
   bool _isPlaying = false;
+  List<AudioFileInfo> _availableAudioFiles = [
+      AudioFileInfo(
+        path: "assets/audio/CD_N1_Listening_2024_12.mp3",
+        level: "N1",
+        examType: "Listening",
+        year: "2024",
+        month: "12",
+      ),
+      AudioFileInfo(
+        path: "assets/audio/CD_N1_Listening_2024_07.mp3",
+        level: "N1",
+        examType: "Listening",
+        year: "2024",
+        month:"7" ,
+      ),
+      // Add more audio files as needed
+    ]; // To store information about all your audio files
+
 
   String _format(Duration d) =>
       '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
@@ -67,9 +85,9 @@ class _QuestionscreenState extends State<Questionscreen> {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _loadQuestions();
-    if (widget.examType == "Listening") {
-      _loadAudio();
-    }
+    if(widget.examType=="Listening"){
+      _loadAudio(year:widget.year, month: widget.month, level: widget.level, examType: widget.examType);
+    }  
   }
 
   int _getExamTypeDurationInSeconds(String level, String examType) {
@@ -407,29 +425,58 @@ class _QuestionscreenState extends State<Questionscreen> {
     return null;
   }
 
-  Future<void> _loadAudio() async {
+  Future<void> _loadAudio({
+    required String year,
+    required String month,
+    required String level,
+    required String examType}) async {
+
     print("Load Audio File ....");
-    final byteData = await rootBundle.load("assets/audio/CD.mp3");
-    final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}/CD.mp3');
-    await file.writeAsBytes(byteData.buffer.asUint8List());
+        // 1. Find the correct audio file based on conditions
+    final AudioFileInfo? selectedAudioFile = _availableAudioFiles.firstWhere(
+      (file) =>
+          file.level == level &&
+          file.examType == examType &&
+          file.year == year &&
+          file.month == month,
+    ) as AudioFileInfo?;
 
-    await _player.setFilePath(file.path);
-    final duration = await DatabaseHelper.instance.getListeningData();
-    print(duration.runtimeType);
-    _audioParts = duration.map<DurationRange>((row) {
+    if (selectedAudioFile == null) {
+      print("No audio file found matching the criteria.");
+      // Handle the case where no matching file is found (e.g., show an error message)
+      return;
+    }
+
+    final String audioAssetPath = selectedAudioFile.path;
+    print("Loading audio from asset: $audioAssetPath");
+
+    try {
+      // 2. Load the audio file from assets to a temporary directory
+      final byteData = await rootBundle.load(audioAssetPath);
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/${audioAssetPath.split('/').last}'); // Use original filename
+      await file.writeAsBytes(byteData.buffer.asUint8List());
+
+      // 3. Set the file path to the audio player
+      await _player.setFilePath(file.path);
+      final duration=await DatabaseHelper.instance.getListeningData();
+      _audioParts = duration.map<DurationRange>((row) {
       final Duration startMs = row.start;
-      final Duration endMs = row.end;
+      final Duration endMs   = row.end;
 
-      return DurationRange(
-        start: startMs,
-        end: endMs,
-      );
-    }).toList();
-    setState(() {
-      _player.play();
-    });
-  }
+    return DurationRange(
+      start: startMs,
+      end: endMs,
+    );
+  }).toList();
+  setState(() {
+    _player.play();
+  });
+    }catch (e) {
+      print("Error loading or playing audio: $e");
+      // Handle errors (e.g., file not found, permission issues, playback errors)
+    }
+    }
 
   Timer? _autoPause; // Keep a reference so we can cancel it
 

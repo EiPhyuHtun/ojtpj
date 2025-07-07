@@ -78,8 +78,8 @@ flutter:
     - assets/images/profile.png
     - assets/images/trophy.png
     - assets/images/crown.jpg
-    - assets/audio/CD.mp3
-    
+    - assets/audio/CD_N1_Listening_2024_12.mp3
+    - assets/audio/CD_N1_Listening_2024_07.mp3
     # database accept
     - assets/database/jlptquiz.db
 
