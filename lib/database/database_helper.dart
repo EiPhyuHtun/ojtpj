@@ -9,8 +9,6 @@ import 'package:sqflite/sqflite.dart';
 
 // Import your data model if you created one
 import 'package:jlpt_quiz/model/question.dart';
-import 'package:jlpt_quiz/model/passage.dart';
-import 'package:jlpt_quiz/model/reading_item.dart';
 
 import '../questionScreen.dart';
 
@@ -330,20 +328,19 @@ class DatabaseHelper {
     }
   }
 
- Future<List<DurationRange>> getListeningData() async {
-  // Example for sqflite
-  final db = await database;
-  final result = await db.query('Listening');  // SELECT * FROM Listening
-  print("Listening Database $result");
-  return result.map((row) {
-    final listening = Listening(
-      startTime: row['start_time_ms'] as String,
-      endTime:   row['end_time_ms']   as String,
-    );
-    return listening.toRange();
-  }).toList();
-}
- 
+  Future<List<DurationRange>> getListeningData() async {
+    // Example for sqflite
+    final db = await database;
+    final result = await db.query('Listening'); // SELECT * FROM Listening
+    print("Listening Database $result");
+    return result.map((row) {
+      final listening = Listening(
+        startTime: row['start_time_ms'] as String,
+        endTime: row['end_time_ms'] as String,
+      );
+      return listening.toRange();
+    }).toList();
+  }
 
   // Method to insert a user attempt
   Future<int> insertUserAttempt(int userId, int quizId, int correctScore,
@@ -420,6 +417,4 @@ class DatabaseHelper {
     await db.close();
     _database = null; // Clear the instance
   }
-
-
 }

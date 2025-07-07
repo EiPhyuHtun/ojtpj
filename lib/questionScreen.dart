@@ -59,14 +59,17 @@ class _QuestionscreenState extends State<Questionscreen> {
   List<DurationRange> _audioParts = [];
   bool _isPlaying = false;
 
+  String _format(Duration d) =>
+      '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _loadQuestions();
-    if(widget.examType=="Listening"){
+    if (widget.examType == "Listening") {
       _loadAudio();
-      }  
+    }
   }
 
   int _getExamTypeDurationInSeconds(String level, String examType) {
@@ -208,7 +211,6 @@ class _QuestionscreenState extends State<Questionscreen> {
         _incorrectAnswersCount++;
       }
     }
-
   }
 
   // Loads questions from the database based on quiz parameters
@@ -308,6 +310,58 @@ class _QuestionscreenState extends State<Questionscreen> {
     }
   }
 
+  Widget _buildAudioControls() {
+    if (_audioParts.isEmpty) return const SizedBox.shrink();
+
+    final clip = _audioParts[_currentQuestionIndex];
+
+    // Null-safety check
+    if (clip.start == null || clip.end == null) {
+      print(
+          "Audio clip start or end is null for question index $_currentQuestionIndex");
+      return const Text("Audio not available for this question.");
+    }
+
+    final clipLength = clip.end - clip.start;
+
+    return StreamBuilder<Duration>(
+      stream: _player.positionStream,
+      builder: (context, snap) {
+        final absolutePos = snap.data ?? Duration.zero;
+
+        // Null protection for math
+        final startMs = clip.start.inMilliseconds;
+        final endMs = clip.end.inMilliseconds;
+        final absoluteMs = absolutePos.inMilliseconds;
+
+        final clippedMs = (absoluteMs - startMs).clamp(0, endMs - startMs);
+        final current = Duration(milliseconds: clippedMs);
+
+        return Column(
+          children: [
+            IconButton(
+              iconSize: 40,
+              icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: Colors.deepPurple),
+              onPressed: _togglePlayPause,
+            ),
+            Slider(
+              value: current.inMilliseconds.toDouble(),
+              max: clipLength.inMilliseconds.toDouble(),
+              onChanged: (v) => _player.seek(
+                clip.start + Duration(milliseconds: v.round()),
+              ),
+              activeColor: Colors.deepPurple,
+              inactiveColor: Colors.deepPurple.shade100,
+            ),
+            Text('${_format(current)} / ${_format(clipLength)}',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        );
+      },
+    );
+  }
+
   Question? get _currentQuestion =>
       _questions.isNotEmpty && _currentQuestionIndex < _questions.length
           ? _questions[_currentQuestionIndex]
@@ -317,6 +371,7 @@ class _QuestionscreenState extends State<Questionscreen> {
   void dispose() {
     _pageController.dispose();
     _timer?.cancel(); // Crucial to cancel the timer when the widget is disposed
+    _player.dispose();
     super.dispose();
   }
 
@@ -354,88 +409,87 @@ class _QuestionscreenState extends State<Questionscreen> {
 
   Future<void> _loadAudio() async {
     print("Load Audio File ....");
-  final byteData = await rootBundle.load("assets/audio/CD.mp3");
-  final tempDir = await getTemporaryDirectory();
-  final file = File('${tempDir.path}/CD.mp3');
-  await file.writeAsBytes(byteData.buffer.asUint8List());
+    final byteData = await rootBundle.load("assets/audio/CD.mp3");
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/CD.mp3');
+    await file.writeAsBytes(byteData.buffer.asUint8List());
 
-  await _player.setFilePath(file.path);
-  final duration=await DatabaseHelper.instance.getListeningData();
-  print(duration.runtimeType);
-  _audioParts = duration.map<DurationRange>((row) {
-    final Duration startMs = row.start;
-    final Duration endMs   = row.end;
+    await _player.setFilePath(file.path);
+    final duration = await DatabaseHelper.instance.getListeningData();
+    print(duration.runtimeType);
+    _audioParts = duration.map<DurationRange>((row) {
+      final Duration startMs = row.start;
+      final Duration endMs = row.end;
 
-    return DurationRange(
-      start: startMs,
-      end: endMs,
-    );
-  }).toList();
-  setState(() {
-    _player.play();
-  });
+      return DurationRange(
+        start: startMs,
+        end: endMs,
+      );
+    }).toList();
+    setState(() {
+      _player.play();
+    });
+  }
 
-}
+  Timer? _autoPause; // Keep a reference so we can cancel it
 
-Timer? _autoPause; // Keep a reference so we can cancel it
+  Future<void> _playClip(int index) async {
+    if (index < 0 || index >= _audioParts.length) return;
 
-Future<void> _playClip(int index) async {
-  if (index < 0 || index >= _audioParts.length) return;
-
-  // Stop whatever was playing
-  await _player.pause();
-  _autoPause?.cancel();
-
-  final range = _audioParts[index];
-
-  // Seek & play the new clip
-  await _player.seek(range.start);
-  await _player.play();
-  setState(() {
-    _currentQuestionIndex = index;
-    _isPlaying = true;
-  });
-
-  // Schedule an auto‑pause at the end of the clip
-  _autoPause = Timer(range.end - range.start, () async {
-    if (_player.playing) {
-      await _player.pause();
-      setState(() => _isPlaying = false);
-    }
-  });
-}
-void _togglePlayPause() async {
-  if (_audioParts.isEmpty) return;
-  final range = _audioParts[_currentQuestionIndex];
-  if (_isPlaying) {
+    // Stop whatever was playing
     await _player.pause();
-    setState(() => _isPlaying = false);
-  } else {
+    _autoPause?.cancel();
+
+    final range = _audioParts[index];
+
+    // Seek & play the new clip
     await _player.seek(range.start);
     await _player.play();
-    setState(() => _isPlaying = true);
+    setState(() {
+      _currentQuestionIndex = index;
+      _isPlaying = true;
+    });
 
-    Future.delayed(range.end - range.start, () {
+    // Schedule an auto‑pause at the end of the clip
+    _autoPause = Timer(range.end - range.start, () async {
       if (_player.playing) {
-        _player.pause();
+        await _player.pause();
         setState(() => _isPlaying = false);
       }
     });
   }
-}
 
-void _onNext() {
-  if (_currentQuestionIndex < _audioParts.length - 1) {
-    _playClip(_currentQuestionIndex + 1);
+  void _togglePlayPause() async {
+    if (_audioParts.isEmpty) return;
+    final range = _audioParts[_currentQuestionIndex];
+    if (_isPlaying) {
+      await _player.pause();
+      setState(() => _isPlaying = false);
+    } else {
+      await _player.seek(range.start);
+      await _player.play();
+      setState(() => _isPlaying = true);
+
+      Future.delayed(range.end - range.start, () {
+        if (_player.playing) {
+          _player.pause();
+          setState(() => _isPlaying = false);
+        }
+      });
+    }
   }
-}
 
-void _onPrevious() {
-  if (_currentQuestionIndex > 0) {
-    _playClip(_currentQuestionIndex - 1);
+  void _onNext() {
+    if (_currentQuestionIndex < _audioParts.length - 1) {
+      _playClip(_currentQuestionIndex + 1);
+    }
   }
-}
 
+  void _onPrevious() {
+    if (_currentQuestionIndex > 0) {
+      _playClip(_currentQuestionIndex - 1);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -640,44 +694,17 @@ void _onPrevious() {
                                   style: const TextStyle(fontSize: 14),
                                 ),
                               ),
-                            if ((question.passage?.isEmpty ?? true) && question.quizId == 18)
-                              Center(
-                                child: GestureDetector(
-                                  onTap: _togglePlayPause,
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEDE7F6),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(16),
-                                          decoration: const BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: Colors.deepPurple,
-                                          ),
-                                          child: Icon(
-                                            _isPlaying ? Icons.pause : Icons.play_arrow,
-                                            size: 36,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        const Text(
-                                          'Tap to Play Audio',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.deepPurple,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                            if ((question.passage?.isEmpty ?? true) &&
+                                question.quizId == 18)
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(top: 10),
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEDE7F6),
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
+                                child: _buildAudioControls(),
                               ),
                             const SizedBox(height: 10),
                             Container(
@@ -785,15 +812,14 @@ void _onPrevious() {
                         if (_currentQuestionIndex > 0)
                           ElevatedButton(
                             onPressed: () {
-                               if(widget.examType=="Listening"){
+                              if (widget.examType == "Listening") {
                                 _onPrevious();
-                                } 
+                              }
                               _userAnswers[_currentQuestionIndex] =
                                   _selectedAnswerIndex;
                               _pageController.previousPage(
                                 duration: const Duration(milliseconds: 300),
                                 curve: Curves.easeIn,
-                                
                               );
                             },
                             style: ElevatedButton.styleFrom(
@@ -810,7 +836,7 @@ void _onPrevious() {
                           ),
                         ElevatedButton(
                           onPressed: () {
-                            if(widget.examType=="Listening"){
+                            if (widget.examType == "Listening") {
                               _onNext();
                             }
                             _userAnswers[_currentQuestionIndex] =
@@ -852,6 +878,10 @@ void _onPrevious() {
       ),
     );
   }
+}
+
+extension on Duration {
+  clamp(Duration zero, Duration clipLength) {}
 }
 
 class DurationRange {

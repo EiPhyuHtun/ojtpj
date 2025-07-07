@@ -9,18 +9,23 @@ class Question {
   final int? quizId; // Make quizId nullable
   final String? groupTitle;
   final String? passage;
+  final int? startTimeMs; // Keep this
+  final int? endTimeMs;
 
-  Question(
-      {this.id,
-      this.subQuestion,
-      this.answer1,
-      this.answer2,
-      this.answer3,
-      this.answer4,
-      this.correctAnswer,
-      this.quizId,
-      this.groupTitle,
-      this.passage});
+  Question({
+    this.id,
+    this.subQuestion,
+    this.answer1,
+    this.answer2,
+    this.answer3,
+    this.answer4,
+    this.correctAnswer,
+    this.quizId,
+    this.groupTitle,
+    this.passage,
+    this.startTimeMs,
+    this.endTimeMs,
+  });
 
   factory Question.fromMap(Map<String, dynamic> map) {
     return Question(
@@ -34,6 +39,8 @@ class Question {
       quizId: map['quiz_id'] as int?,
       groupTitle: map['group_title'] as String?,
       passage: map['passage'],
+      startTimeMs: map['start_time_ms'] as int?, // Map from DB
+      endTimeMs: map['end_time_ms'] as int?,
     );
   }
 
@@ -47,6 +54,8 @@ class Question {
       'answer4': answer4,
       'correct_answer': correctAnswer,
       'quiz_id': quizId,
+      'start_time_ms': startTimeMs,
+      'end_time_ms': endTimeMs,
     };
   }
 }

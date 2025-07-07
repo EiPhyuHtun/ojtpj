@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'exam_detail.dart';
 import 'package:jlpt_quiz/database/database_helper.dart'; // Import your DatabaseHelper
 import 'package:jlpt_quiz/model/user.dart'; // Import your User model
-import 'dart:typed_data';
 
 class LevelPage extends StatefulWidget {
   const LevelPage({super.key});
