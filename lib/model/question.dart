@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 class Question {
   final int? id; // Make ID nullable
   final String? subQuestion; // Make subQuestion nullable if it can be null
@@ -11,6 +13,7 @@ class Question {
   final String? passage;
   final int? startTimeMs; // Keep this
   final int? endTimeMs;
+  final Uint8List? questionImage;
 
   Question({
     this.id,
@@ -25,6 +28,7 @@ class Question {
     this.passage,
     this.startTimeMs,
     this.endTimeMs,
+    this.questionImage,
   });
 
   factory Question.fromMap(Map<String, dynamic> map) {
@@ -41,6 +45,9 @@ class Question {
       passage: map['passage'],
       startTimeMs: map['start_time_ms'] as int?, // Map from DB
       endTimeMs: map['end_time_ms'] as int?,
+      questionImage: map['question_image'] != null
+          ? Uint8List.fromList(map['question_image'] as List<int>)
+          : null,
     );
   }
 
@@ -56,6 +63,7 @@ class Question {
       'quiz_id': quizId,
       'start_time_ms': startTimeMs,
       'end_time_ms': endTimeMs,
+      'question_image': questionImage,
     };
   }
 }

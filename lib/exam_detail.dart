@@ -153,6 +153,100 @@ class _ExamDetailTabState extends State<ExamDetailTab> {
     }
   }
 
+  String getExamDuration(String level, String examType) {
+    int minutes;
+    switch (level) {
+      case 'N1':
+        switch (examType) {
+          case 'Kanji/Vocab':
+            minutes = 50;
+            break;
+          case 'Reading':
+            minutes = 60;
+            break;
+          case 'Listening':
+            minutes = 60;
+            break;
+          default:
+            minutes =
+                0; // Should ideally not happen if examType is one of the above
+            break;
+        }
+        break;
+      case 'N2':
+        switch (examType) {
+          case 'Kanji/Vocab':
+            minutes = 50;
+            break;
+          case 'Reading':
+            minutes = 55;
+            break;
+          case 'Listening':
+            minutes = 50;
+            break;
+          default:
+            minutes = 0;
+            break;
+        }
+        break;
+      case 'N3':
+        // N3, N4, N5 only have a 'Total' time provided in your original snippet
+        // If you have specific times for Kanji/Vocab, Reading, Listening for these levels,
+        // you'll need to add them here. For now, I'll set a placeholder or a total.
+        switch (examType) {
+          case 'Kanji/Vocab':
+            minutes = 65; // Example placeholder for N3 Kanji/Vocab
+            break;
+          case 'Reading':
+            minutes = 60; // Example placeholder for N3 Reading
+            break;
+          case 'Listening':
+            minutes = 40; // Example placeholder for N3 Listening
+            break;
+          default:
+            minutes = 125; // N3 total time as fallback
+            break;
+        }
+        break;
+      case 'N4':
+        switch (examType) {
+          case 'Kanji/Vocab':
+            minutes = 30; // Example placeholder for N4 Kanji/Vocab
+            break;
+          case 'Reading':
+            minutes = 30; // Example placeholder for N4 Reading
+            break;
+          case 'Listening':
+            minutes = 35; // Example placeholder for N4 Listening
+            break;
+          default:
+            minutes = 105; // N4 total time as fallback
+            break;
+        }
+        break;
+      case 'N5':
+        switch (examType) {
+          case 'Kanji/Vocab':
+            minutes = 25; // Example placeholder for N5 Kanji/Vocab
+            break;
+          case 'Reading':
+            minutes = 25; // Example placeholder for N5 Reading
+            break;
+          case 'Listening':
+            minutes = 30; // Example placeholder for N5 Listening
+            break;
+          default:
+            minutes = 80; // N5 total time as fallback
+            break;
+        }
+        break;
+      default:
+        minutes = 0; // Default case
+        break;
+    }
+    return '$minutes分';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -212,8 +306,11 @@ class _ExamDetailTabState extends State<ExamDetailTab> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _ExamTypeBox('文字', '30分', Colors.orange, Colors.black,
-                      onTap: () {
+                  _ExamTypeBox(
+                      '文字',
+                      getExamDuration(widget.level, 'Kanji/Vocab'),
+                      Colors.orange,
+                      Colors.black, onTap: () {
                     print("Exam type tapped");
                     Navigator.push(
                       context,
@@ -229,7 +326,7 @@ class _ExamDetailTabState extends State<ExamDetailTab> {
                   }),
                   _ExamTypeBox(
                     '読解',
-                    '60分',
+                    getExamDuration(widget.level, 'Reading'),
                     Colors.cyan,
                     Colors.black,
                     onTap: () {
@@ -248,7 +345,7 @@ class _ExamDetailTabState extends State<ExamDetailTab> {
                   ),
                   _ExamTypeBox(
                     '聴解',
-                    '40分',
+                    getExamDuration(widget.level, 'Listening'),
                     Colors.lightBlue,
                     Colors.black,
                     onTap: () {

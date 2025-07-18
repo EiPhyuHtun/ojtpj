@@ -8,7 +8,6 @@ import 'package:jlpt_quiz/model/question.dart';
 import 'dart:async'; // Import for Timer
 import 'package:jlpt_quiz/history.dart';
 import 'package:jlpt_quiz/model/user_attempt.dart';
-import 'package:jlpt_quiz/passageScreen.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart'; // Import HistoryScreen
 
@@ -49,7 +48,8 @@ class _QuestionscreenState extends State<Questionscreen> {
 
   final Map<int, int?> _userAnswers = {};
 
-  final int _currentLoggedInUserId = 1; // **IMPORTANT: Replace with actual user ID**
+  final int _currentLoggedInUserId =
+      1; // **IMPORTANT: Replace with actual user ID**
 
   int? _currentQuizId;
   bool _showHint = false;
@@ -58,24 +58,51 @@ class _QuestionscreenState extends State<Questionscreen> {
   final AudioPlayer _player = AudioPlayer();
   List<DurationRange> _audioParts = [];
   bool _isPlaying = false;
-  List<AudioFileInfo> _availableAudioFiles = [
-      AudioFileInfo(
-        path: "assets/audio/CD_N1_Listening_2024_12.mp3",
-        level: "N1",
-        examType: "Listening",
-        year: "2024",
-        month: "12",
-      ),
-      AudioFileInfo(
-        path: "assets/audio/CD_N1_Listening_2024_07.mp3",
-        level: "N1",
-        examType: "Listening",
-        year: "2024",
-        month:"7" ,
-      ),
-      // Add more audio files as needed
-    ]; // To store information about all your audio files
-
+  final List<AudioFileInfo> _availableAudioFiles = [
+    AudioFileInfo(
+      path: "assets/audio/CD_N1_Listening_2024_12.mp3",
+      level: "N1",
+      examType: "Listening",
+      year: "2024",
+      month: "12",
+    ),
+    AudioFileInfo(
+      path: "assets/audio/CD_N1_Listening_2024_07.mp3",
+      level: "N1",
+      examType: "Listening",
+      year: "2024",
+      month: "7",
+    ),
+    AudioFileInfo(
+      path: "assets/audio/CD_N2_Listening_2024_12.mp3",
+      level: "N2",
+      examType: "Listening",
+      year: "2024",
+      month: "12",
+    ),
+    AudioFileInfo(
+      path: "assets/audio/CD_N2_Listening_2024_7.mp3",
+      level: "N2",
+      examType: "Listening",
+      year: "2024",
+      month: "7",
+    ),
+    AudioFileInfo(
+      path: "assets/audio/CD_N3_Listening_2024_12.mp3",
+      level: "N3",
+      examType: "Listening",
+      year: "2024",
+      month: "12",
+    ),
+    AudioFileInfo(
+      path: "assets/audio/CD_N3_Listening_2024_7.mp3",
+      level: "N3",
+      examType: "Listening",
+      year: "2024",
+      month: "7",
+    ),
+    // Add more audio files as needed
+  ]; // To store information about all your audio files
 
   String _format(Duration d) =>
       '${d.inMinutes.toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
@@ -85,9 +112,13 @@ class _QuestionscreenState extends State<Questionscreen> {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _loadQuestions();
-    if(widget.examType=="Listening"){
-      _loadAudio(year:widget.year, month: widget.month, level: widget.level, examType: widget.examType);
-    }  
+    if (widget.examType == "Listening") {
+      _loadAudio(
+          year: widget.year,
+          month: widget.month,
+          level: widget.level,
+          examType: widget.examType);
+    }
   }
 
   int _getExamTypeDurationInSeconds(String level, String examType) {
@@ -425,14 +456,13 @@ class _QuestionscreenState extends State<Questionscreen> {
     return null;
   }
 
-  Future<void> _loadAudio({
-    required String year,
-    required String month,
-    required String level,
-    required String examType}) async {
-
+  Future<void> _loadAudio(
+      {required String year,
+      required String month,
+      required String level,
+      required String examType}) async {
     print("Load Audio File ....");
-        // 1. Find the correct audio file based on conditions
+    // 1. Find the correct audio file based on conditions
     final AudioFileInfo? selectedAudioFile = _availableAudioFiles.firstWhere(
       (file) =>
           file.level == level &&
@@ -454,29 +484,30 @@ class _QuestionscreenState extends State<Questionscreen> {
       // 2. Load the audio file from assets to a temporary directory
       final byteData = await rootBundle.load(audioAssetPath);
       final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/${audioAssetPath.split('/').last}'); // Use original filename
+      final file = File(
+          '${tempDir.path}/${audioAssetPath.split('/').last}'); // Use original filename
       await file.writeAsBytes(byteData.buffer.asUint8List());
 
       // 3. Set the file path to the audio player
       await _player.setFilePath(file.path);
-      final duration=await DatabaseHelper.instance.getListeningData();
+      final duration = await DatabaseHelper.instance.getListeningData();
       _audioParts = duration.map<DurationRange>((row) {
-      final Duration startMs = row.start;
-      final Duration endMs   = row.end;
+        final Duration startMs = row.start;
+        final Duration endMs = row.end;
 
-    return DurationRange(
-      start: startMs,
-      end: endMs,
-    );
-  }).toList();
-  setState(() {
-    _player.play();
-  });
-    }catch (e) {
+        return DurationRange(
+          start: startMs,
+          end: endMs,
+        );
+      }).toList();
+      setState(() {
+        _player.play();
+      });
+    } catch (e) {
       print("Error loading or playing audio: $e");
       // Handle errors (e.g., file not found, permission issues, playback errors)
     }
-    }
+  }
 
   Timer? _autoPause; // Keep a reference so we can cancel it
 
@@ -742,7 +773,12 @@ class _QuestionscreenState extends State<Questionscreen> {
                                 ),
                               ),
                             if ((question.passage?.isEmpty ?? true) &&
-                                question.quizId == 18)
+                                (question.quizId == 18 ||
+                                    question.quizId == 3 ||
+                                    question.quizId == 6 ||
+                                    question.quizId == 21 ||
+                                    question.quizId == 9 ||
+                                    question.quizId == 24))
                               Container(
                                 width: double.infinity,
                                 margin: const EdgeInsets.only(top: 10),
@@ -752,6 +788,27 @@ class _QuestionscreenState extends State<Questionscreen> {
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: _buildAudioControls(),
+                              ),
+                            if (currentQuestion.questionImage != null)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16.0),
+                                child: Center(
+                                  // Center the image
+                                  child: Image.memory(
+                                    currentQuestion.questionImage!,
+                                    fit: BoxFit
+                                        .contain, // Ensures the image fits within bounds
+                                    width: MediaQuery.of(context).size.width *
+                                        0.8, // 80% of screen width
+                                    // You can also set a maxHeight if images can be very tall
+                                    // maxHeight: 300,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Text(
+                                          'Could not load image'); // Fallback for image loading errors
+                                    },
+                                  ),
+                                ),
                               ),
                             const SizedBox(height: 10),
                             Container(

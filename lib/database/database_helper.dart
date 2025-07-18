@@ -290,7 +290,8 @@ class DatabaseHelper {
         q.correct_answer,
         q.quiz_id,
         qg.group_title AS group_title,
-        p.paragraph AS passage
+        p.paragraph AS passage,
+        qi.question_image
       FROM
         questions AS q
       JOIN quiz AS qz ON q.quiz_id = qz.id
@@ -298,6 +299,7 @@ class DatabaseHelper {
       LEFT JOIN question_groups AS qg ON q.question_groups_id = qg.id
       LEFT JOIN reading AS r ON r.question_id = q.id
       LEFT JOIN passages AS p ON r.passage_id = p.id
+      LEFT JOIN question_image AS qi ON q.id = qi.question_id
       WHERE
         y.year = ? AND y.month = ? AND qz.type = ? AND qz.level = ?
     ''', [year, month, examType, level]); // Order of parameters matters!
@@ -340,6 +342,12 @@ class DatabaseHelper {
       );
       return listening.toRange();
     }).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getAllQuestionImages() async {
+    final db = await database;
+    final result = await db.query('question_image');
+    return result; // List of maps with keys: 'question_id', 'question_image'
   }
 
   // Method to insert a user attempt

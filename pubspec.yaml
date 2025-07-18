@@ -80,6 +80,10 @@ flutter:
     - assets/images/crown.jpg
     - assets/audio/CD_N1_Listening_2024_12.mp3
     - assets/audio/CD_N1_Listening_2024_07.mp3
+    - assets/audio/CD_N2_Listening_2024_12.mp3
+    - assets/audio/CD_N2_Listening_2024_7.mp3
+    - assets/audio/CD_N3_Listening_2024_12.mp3
+    - assets/audio/CD_N3_Listening_2024_7.mp3
     # database accept
     - assets/database/jlptquiz.db
 
