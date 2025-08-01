@@ -658,6 +658,7 @@ class _QuestionscreenState extends State<Questionscreen> {
               question.answer3 ?? 'Answer 3 missing',
               question.answer4 ?? 'Answer 4 missing',
             ];
+            final bool isAnswer4Null = question.answer4 == null;
 
             return Container(
               color: Colors.yellow,
@@ -773,12 +774,7 @@ class _QuestionscreenState extends State<Questionscreen> {
                                 ),
                               ),
                             if ((question.passage?.isEmpty ?? true) &&
-                                (question.quizId == 18 ||
-                                    question.quizId == 3 ||
-                                    question.quizId == 6 ||
-                                    question.quizId == 21 ||
-                                    question.quizId == 9 ||
-                                    question.quizId == 24))
+                                widget.examType == "Listening")
                               Container(
                                 width: double.infinity,
                                 margin: const EdgeInsets.only(top: 10),
@@ -855,10 +851,26 @@ class _QuestionscreenState extends State<Questionscreen> {
                       ),
                     ),
 
-                    // Answer Options
-                    ...answers.asMap().entries.map((entry) {
+                    // ... (your existing code before the answer options loop)
+
+// Determine if answer4 is null (assuming 'question' object is available here)
+// This variable isn't strictly needed for the filtering logic, but kept for clarity
+
+// Answer Options
+                    ...answers.asMap().entries.where((entry) {
+                      // Only include the entry if it's NOT the fourth answer AND answer4 is null.
+                      // In other words, if answer4 is null, exclude index 3.
+                      // Otherwise, include all entries.
+                      return !(entry.key == 3 && isAnswer4Null);
+                    }).map((entry) {
                       final int index = entry.key;
                       final String text = entry.value;
+
+                      // Adjust isSelected logic if _selectedAnswerIndex is 0-indexed
+                      // Note: if you remove answer4, your _selectedAnswerIndex mapping might need adjustment
+                      // if it's based on fixed indices (1, 2, 3, 4).
+                      // If _selectedAnswerIndex stores the original question's answer number (1-4),
+                      // then no change is needed here.
                       bool isSelected = (_selectedAnswerIndex == index + 1);
 
                       return Card(
@@ -905,7 +917,7 @@ class _QuestionscreenState extends State<Questionscreen> {
                           },
                         ),
                       );
-                    }),
+                    }).toList(), // Don't forget .toList()// Don't forget .toList()
 
                     const SizedBox(height: 20),
 
